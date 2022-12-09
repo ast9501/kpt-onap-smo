@@ -1,7 +1,7 @@
 # strimzi-kafka-operator
 
 ## Description
-sample description
+ONAP-based SMO strimzi-kafka-operator
 
 ## Usage
 

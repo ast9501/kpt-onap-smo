@@ -6,4 +6,4 @@ metadata:
     config.kubernetes.io/local-config: "true"
   namespace: strimzi-system
 data:
-  name: example
+  name: strimzi-system
