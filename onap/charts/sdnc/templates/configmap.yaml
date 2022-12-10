@@ -1,0 +1,757 @@
+# Source: onap/charts/sdnc/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-sdnc-log-configmap
+  namespace: onap
+  labels:
+    app: sdnc
+    chart: sdnc-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  org.ops4j.pax.logging.cfg: |2
+
+    log4j2.property.ServiceName = INTERNAL
+    log4j2.property.ErrorCode = 900
+    log4j2.property.ErrorDesc = UnknownError
+
+    # Common properties
+    maxFileSize=100MB
+    maxBackupIndex=20
+    logDir=/var/log/onap
+    componentName=sdnc
+    logDirectory=${logDir}/${componentName}
+    karafLogName=karaf
+    auditLogName=audit
+    debugLogName=debug
+    errorLogName=error
+    metricsLogName=metric
+    requestResponseLogName=request-response
+    securityLogName=security
+
+    log4j2.rootLogger.level = INFO
+    log4j2.rootLogger.appenderRef.KarafFile.ref = KarafFile
+    log4j2.rootLogger.appenderRef.PaxOsgi.ref = PaxOsgi
+    log4j2.rootLogger.appenderRef.Console.ref = Console
+    log4j2.rootLogger.appenderRef.DebugFile.ref = DebugFile
+    log4j2.rootLogger.appenderRef.ErrorFile.ref = ErrorFile
+    log4j2.rootLogger.appenderRef.Console.filter.threshold.type = ThresholdFilter
+    log4j2.rootLogger.appenderRef.Console.filter.threshold.level = ${env:KARAF_CONSOLE_LOG_LEVEL\:-OFF}
+
+    log4j2.bundle.info = %X{bundle.id} - %.50X{bundle.name} - %X{bundle.version}
+    # Veracode: Address Improper Output Neutralization for Logs CWE ID 117 flaw
+    # \\R matches any new line character, any new line character will replaced with space (stripped)
+    log4j2.pattern = %d{ISO8601} | %-5p | %-16t | %-32c{1} | ${log4j2.bundle.info} | %X{currentGraph} - %X{nodeId}  | %replace{%m}{\\R}{ }%n
+
+    # Appenders configuration
+    # Console appender not used by default (see log4j2.rootLogger.appenderRefs)
+    log4j2.appender.console.type = Console
+    log4j2.appender.console.name = Console
+    log4j2.appender.console.layout.type = PatternLayout
+    log4j2.appender.console.layout.pattern = ${log4j2.pattern}
+
+    # OSGi appender
+    log4j2.appender.osgi.type = PaxOsgi
+    log4j2.appender.osgi.name = PaxOsgi
+    log4j2.appender.osgi.filter = *
+
+    # KarafFile appender
+    log4j2.appender.karaf.type = RollingRandomAccessFile
+    log4j2.appender.karaf.name = KarafFile
+    log4j2.appender.karaf.fileName = ${logDirectory}/${karafLogName}.log
+    log4j2.appender.karaf.filePattern = ${logDirectory}/${karafLogName}.log.%i
+    # uncomment to not force a disk flush
+    #log4j2.appender.karaf.immediateFlush = false
+    log4j2.appender.karaf.append = true
+    log4j2.appender.karaf.layout.type = PatternLayout
+    log4j2.appender.karaf.layout.pattern = ${log4j2.pattern}
+    log4j2.appender.karaf.policies.type = Policies
+    log4j2.appender.karaf.policies.size.type = SizeBasedTriggeringPolicy
+    log4j2.appender.karaf.policies.size.size = ${maxFileSize}
+    log4j2.appender.karaf.strategy.type = DefaultRolloverStrategy
+    log4j2.appender.karaf.strategy.max = ${maxBackupIndex}
+    log4j2.appender.karaf.strategy.fileIndex = min
+
+    #ecomp logging standards
+    log4j2.appender.debug.type = RollingRandomAccessFile
+    log4j2.appender.debug.name = DebugFile
+    log4j2.appender.debug.fileName = ${logDirectory}/${debugLogName}.log
+    log4j2.appender.debug.filePattern = ${logDirectory}/${debugLogName}.log.%i
+    # uncomment to not force a disk flush
+    #log4j2.appender.debug.immediateFlush = false
+    log4j2.appender.debug.append = true
+    log4j2.appender.debug.layout.type = PatternLayout
+    log4j2.appender.debug.layout.pattern = %d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}|%X{RequestID}|%-16.16t|%-5.5p|%-32.32c{1}|${log4j2.bundle.info}|%replace{%m}{\\R}{ }%n
+    log4j2.appender.debug.policies.type = Policies
+    log4j2.appender.debug.policies.size.type = SizeBasedTriggeringPolicy
+    log4j2.appender.debug.policies.size.size = ${maxFileSize}
+    log4j2.appender.debug.strategy.type = DefaultRolloverStrategy
+    log4j2.appender.debug.strategy.max = ${maxBackupIndex}
+    log4j2.appender.debug.strategy.fileIndex = min
+
+    log4j2.appender.error.type = RollingRandomAccessFile
+    log4j2.appender.error.name = ErrorFile
+    log4j2.appender.error.fileName = ${logDirectory}/${errorLogName}.log
+    log4j2.appender.error.filePattern = ${logDirectory}/${errorLogName}.log.%i
+    # uncomment to not force a disk flush
+    #log4j2.appender.error.immediateFlush = false
+    log4j2.appender.error.append = true
+    log4j2.appender.error.layout.type = PatternLayout
+    log4j2.appender.error.layout.pattern = %d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}|%X{RequestID}|%-16.16t|$\$\\\{ctx:ServiceName\}|%X{PartnerName}|%X{TargetEntity}|%X{TargetServiceName}|%p|$\$\\\{ctx:ErrorCode\}|$\$\\\{ctx:ErrorDesc\}|%replace{%m}{\\R}{ }%ex{full}{separator(\\n)}%n
+
+    log4j2.appender.error.policies.type = Policies
+    log4j2.appender.error.policies.size.type = SizeBasedTriggeringPolicy
+    log4j2.appender.error.policies.size.size = ${maxFileSize}
+    log4j2.appender.error.strategy.type = DefaultRolloverStrategy
+    log4j2.appender.error.strategy.max = ${maxBackupIndex}
+    log4j2.appender.error.strategy.fileIndex = min
+    log4j2.appender.error.filter.threshold.type = ThresholdFilter
+    log4j2.appender.error.filter.threshold.level = WARN
+
+    log4j2.appender.metric.type = RollingRandomAccessFile
+    log4j2.appender.metric.name = MetricFile
+    log4j2.appender.metric.fileName = ${logDirectory}/${metricsLogName}.log
+    log4j2.appender.metric.filePattern = ${logDirectory}/${metricsLogName}.log.%i
+    # uncomment to not force a disk flush
+    #log4j2.appender.metric.immediateFlush = false
+    log4j2.appender.metric.append = true
+    log4j2.appender.metric.layout.type = PatternLayout
+    log4j2.appender.metric.layout.pattern=%X{InvokeTimestamp}|%X{LogTimestamp}|%X{RequestID}|%X{ServiceInstanceID}|%-16.16t|%X{ServerFQDN}|%X{ServiceName}|%X{PartnerName}|%X{TargetEntity}|%X{TargetServiceName}|%X{StatusCode}|%X{ResponseCode}|%X{ResponseDesc}|%X{InstanceID}|%p|%X{Severity}|%X{ServerIPAddress}|%X{ElapsedTime}|%X{ServerFQDN}|%X{ClientIPAddress}|%C{1}|||%X{TargetElement}|%X{slf4j.marker}|%X|%X{currentGraph} - %X{nodeId}|${log4j2.bundle.info}|%m%n
+    log4j2.appender.metric.policies.type = Policies
+    log4j2.appender.metric.policies.size.type = SizeBasedTriggeringPolicy
+    log4j2.appender.metric.policies.size.size = ${maxFileSize}
+    log4j2.appender.metric.strategy.type = DefaultRolloverStrategy
+    log4j2.appender.metric.strategy.max = 100
+    log4j2.appender.metric.strategy.fileIndex = min
+
+    log4j2.appender.audit.type = RollingRandomAccessFile
+    log4j2.appender.audit.name = AuditFile
+    log4j2.appender.audit.fileName = ${logDirectory}/${auditLogName}.log
+    log4j2.appender.audit.filePattern = ${logDirectory}/${auditLogName}.log.%i
+    # uncomment to not force a disk flush
+    #log4j2.appender.audit.immediateFlush = false
+    log4j2.appender.audit.append = true
+    log4j2.appender.audit.layout.type = PatternLayout
+    log4j2.appender.audit.layout.pattern=%X{EntryTimestamp}|%X{LogTimestamp}|%X{RequestID}|%X{ServiceInstanceID}|%-16.16t|%X{ServerFQDN}|%X{ServiceName}|%X{PartnerName}|%X{StatusCode}|%X{ResponseCode}|%X{ResponseDesc}|%X{InstanceID}|INFO|%X{Severity}|%X{ServerIPAddress}|%X{ElapsedTime}|%X{ServerFQDN}|%X{ClientIPAddress}|%C{1}|%X{AUDIT-Unused}|%X{AUDIT-ProcessKey}|%X{slf4j.marker}|%X|%X{currentGraph} - %X{nodeId}|${log4j2.bundle.info}|%m%n
+    log4j2.appender.audit.policies.type = Policies
+    log4j2.appender.audit.policies.size.type = SizeBasedTriggeringPolicy
+    log4j2.appender.audit.policies.size.size = ${maxFileSize}
+    log4j2.appender.audit.strategy.type = DefaultRolloverStrategy
+    log4j2.appender.audit.strategy.max = ${maxBackupIndex}
+    log4j2.appender.audit.strategy.fileIndex = min
+
+    log4j2.appender.rr.name = RequestResponseFile
+    log4j2.appender.rr.type = RollingRandomAccessFile
+    log4j2.appender.rr.fileName = ${logDirectory}/${requestResponseLogName}.log
+    log4j2.appender.rr.filePattern = ${logDirectory}/${requestResponseLogName}.log.%i
+    log4j2.appender.rr.immediateFlush = false
+    log4j2.appender.rr.append = true
+    log4j2.appender.rr.layout.type = PatternLayout
+    log4j2.appender.rr.layout.pattern = %d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX}|%X{RequestID}|%X{PartnerName}|%m%n
+    log4j2.appender.rr.policies.type = Policies
+    log4j2.appender.rr.policies.size.type = SizeBasedTriggeringPolicy
+    log4j2.appender.rr.policies.size.size = 50MB
+    log4j2.appender.rr.strategy.type = DefaultRolloverStrategy
+    log4j2.appender.rr.strategy.max = 100
+    log4j2.appender.rr.strategy.fileIndex = min
+
+    log4j2.appender.security.type = RollingRandomAccessFile
+    log4j2.appender.security.name = SecurityFile
+    log4j2.appender.security.fileName = ${logDirectory}/${securityLogName}.log
+    log4j2.appender.security.filePattern = ${logDirectory}/${securityLogName}.log.%i
+    log4j2.appender.security.append = true
+    log4j2.appender.security.layout.type = PatternLayout
+    log4j2.appender.security.layout.pattern = ${log4j2.pattern}
+    log4j2.appender.security.policies.type = Policies
+    log4j2.appender.security.policies.size.type = SizeBasedTriggeringPolicy
+    log4j2.appender.security.policies.size.size = ${maxFileSize}
+
+    # Security audit logger
+    log4j2.logger.security.name = org.apache.karaf.jaas.modules.audit
+    log4j2.logger.security.level = INFO
+    log4j2.logger.security.additivity = false
+    log4j2.logger.security.appenderRef.SecurityFile.ref = SecurityFile
+
+    log4j2.logger.audit.name = org.onap.logging.filter.base.AbstractAuditLogFilter
+    log4j2.logger.audit.level = INFO
+    log4j2.logger.audit.additivity = false
+    log4j2.logger.audit.appenderRef.AuditFile.ref = AuditFile
+
+    log4j2.logger.metric.name = org.onap.ccsdk.sli.core.filters.metric
+    log4j2.logger.metric.level = INFO
+    log4j2.logger.metric.additivity = false
+    log4j2.logger.metric.appenderRef.MetricFile.ref = MetricFile
+
+    log4j2.logger.metric2.name = org.onap.logging.filter.base.AbstractBaseMetricLogFilter
+    log4j2.logger.metric2.level = INFO
+    log4j2.logger.metric2.additivity = false
+    log4j2.logger.metric2.appenderRef.MetricFile.ref = MetricFile
+
+    log4j2.logger.rr.name = org.onap.logging.filter.base.PayloadLoggingServletFilter
+    log4j2.logger.rr.level = INFO
+    log4j2.logger.rr.additivity = false
+    log4j2.logger.rr.appenderRef.RequestResponseFile.ref = RequestResponseFile
+---
+# Source: onap/charts/sdnc/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-sdnc-bin
+  namespace: onap
+  labels:
+    app: sdnc
+    chart: sdnc-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  createLinks.sh: |
+    #!/bin/sh
+
+    ###
+    # ============LICENSE_START=======================================================
+    # ONAP : SDN-C
+    # ================================================================================
+    # Copyright (C) 2017 AT&T Intellectual Property. All rights reserved.
+    # ================================================================================
+    # Licensed under the Apache License, Version 2.0 (the "License");
+    # you may not use this file except in compliance with the License.
+    # You may obtain a copy of the License at
+    #
+    #      http://www.apache.org/licenses/LICENSE-2.0
+    #
+    # Unless required by applicable law or agreed to in writing, software
+    # distributed under the License is distributed on an "AS IS" BASIS,
+    # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    # See the License for the specific language governing permissions and
+    # limitations under the License.
+    # ============LICENSE_END=========================================================
+    ###
+
+
+    if [ "$MDSAL_PATH" = "" ]
+    then
+        MDSAL_PATH=/opt/opendaylight/mdsal
+    fi
+
+    if [ "$JOURNAL_PATH" = "" ]
+    then
+        JOURNAL_PATH=/opt/opendaylight/journal
+    fi
+
+    if [ "$SNAPSHOTS_PATH" = "" ]
+    then
+        SNAPSHOTS_PATH=/opt/opendaylight/snapshots
+    fi
+
+    if [ ! -L $JOURNAL_PATH ]
+    then
+        if [ -d $JOURNAL_PATH ]
+        then
+            mv $JOURNAL_PATH/* $MDSAL_PATH/journal
+            rm -f $JOURNAL_PATH
+        fi
+        ln -s $MDSAL_PATH/journal $JOURNAL_PATH
+    fi
+
+    if [ ! -L $SNAPSHOTS_PATH ]
+    then
+        if [ -d $SNAPSHOTS_PATH ]
+        then
+            mv $SNAPSHOTS_PATH/* $MDSAL_PATH/snapshots
+            rm -f $SNAPSHOTS_PATH
+        fi
+        ln -s $MDSAL_PATH/snapshots $SNAPSHOTS_PATH
+    fi
+  installSdncDb.sh: |
+    #!/bin/sh
+
+
+
+    SDNC_HOME=${SDNC_HOME:-/opt/onap/sdnc}
+    ETC_DIR=${ETC_DIR:-${SDNC_HOME}/data}
+    BIN_DIR=${BIN_DIR-${SDNC_HOME}/bin}
+    MYSQL_HOST=${MYSQL_HOST:-dbhost}
+    MYSQL_PASSWORD=${MYSQL_ROOT_PASSWORD}
+
+    SDNC_DB_USER=${SDNC_DB_USER}
+    SDNC_DB_PASSWORD=${SDNC_DB_PASSWORD}
+    SDNC_DB_DATABASE=${SDNC_DB_DATABASE}
+
+
+    # Create tablespace and user account
+    mysql -h ${MYSQL_HOST} -u root -p${MYSQL_PASSWORD} mysql <<-END
+    CREATE DATABASE IF NOT EXISTS ${SDNC_DB_DATABASE};
+    CREATE USER IF NOT EXISTS '${SDNC_DB_USER}'@'localhost' IDENTIFIED BY '${SDNC_DB_PASSWORD}';
+    CREATE USER IF NOT EXISTS '${SDNC_DB_USER}'@'%' IDENTIFIED BY '${SDNC_DB_PASSWORD}';
+    GRANT ALL PRIVILEGES ON ${SDNC_DB_DATABASE}.* TO '${SDNC_DB_USER}'@'localhost' WITH GRANT OPTION;
+    GRANT ALL PRIVILEGES ON ${SDNC_DB_DATABASE}.* TO '${SDNC_DB_USER}'@'%' WITH GRANT OPTION;
+    flush privileges;
+    commit;
+    END
+
+    # load schema
+    if [ -f ${ETC_DIR}/sdnctl.dump ]
+    then
+      mysql -h ${MYSQL_HOST} -u root -p${MYSQL_PASSWORD} ${SDNC_DB_DATABASE} < ${ETC_DIR}/sdnctl.dump
+    fi
+
+    for datafile in ${ETC_DIR}/*.data.dump
+    do
+      mysql -h ${MYSQL_HOST} -u root -p${MYSQL_PASSWORD} ${SDNC_DB_DATABASE} < $datafile
+    done
+
+    # Create VNIs 100-199
+    ${BIN_DIR}/addVnis.sh 100 199
+
+    # Drop FK_NETWORK_MODEL foreign key as workaround for SDNC-291.
+    ${BIN_DIR}/rmForeignKey.sh NETWORK_MODEL FK_NETWORK_MODEL
+
+    if [ -x ${SDNC_HOME}/svclogic/bin/install.sh ]
+    then
+        echo "Installing directed graphs"
+        ${SDNC_HOME}/svclogic/bin/install.sh
+    fi
+
+
+    exit 0
+---
+# Source: onap/charts/sdnc/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-sdnc-properties
+  namespace: onap
+  labels:
+    app: sdnc
+    chart: sdnc-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  aaiclient.properties: |2
+
+
+    #
+    # Configuration file for A&AI Client
+    #
+
+    #
+    # Certificate keystore and truststore
+    #
+    org.onap.ccsdk.sli.adaptors.aai.ssl.trust=/opt/onap/sdnc/data/stores/truststoreONAPall.jks
+    org.onap.ccsdk.sli.adaptors.aai.ssl.trust.psswd=changeit
+    org.onap.ccsdk.sli.adaptors.aai.host.certificate.ignore=true
+
+    org.onap.ccsdk.sli.adaptors.aai.client.name=${AAI_CLIENT_NAME}
+    org.onap.ccsdk.sli.adaptors.aai.client.psswd=${AAI_CLIENT_PASSWORD}
+
+    org.onap.ccsdk.sli.adaptors.aai.application=openECOMP
+    #
+    # Configuration file for A&AI Client
+    #
+    org.onap.ccsdk.sli.adaptors.aai.uri=https://aai.onap:8443
+    connection.timeout=60000
+    read.timeout=60000
+
+    # query
+    org.onap.ccsdk.sli.adaptors.aai.path.query=/aai/v13/search/sdn-zone-query
+    org.onap.ccsdk.sli.adaptors.aai.query.nodes=/aai/v13/search/nodes-query?search-node-type={node-type}&filter={entity-identifier}:EQUALS:{entity-name}
+    org.onap.ccsdk.sli.adaptors.aai.query.generic=/aai/v13/search/generic-query?key={identifier}:{value}&start-node-type={start-node-type}&include=complex&depth=3
+
+    # named query
+    org.onap.ccsdk.sli.adaptors.aai.query.named=/aai/search/named-query
+
+    #update
+    org.onap.ccsdk.sli.adaptors.aai.update=/aai/v13/actions/update
+
+    # UBB Notify
+    org.onap.ccsdk.sli.adaptors.aai.path.notify=/aai/v13/actions/notify
+    org.onap.ccsdk.sli.adaptors.aai.notify.selflink.fqdn=<%= @ubbUri %>/restconf/config/L3SDN-API:services/layer3-service-list/{service-instance-id}
+    org.onap.ccsdk.sli.adaptors.aai.notify.selflink.avpn=<%= @ubbUri %>/restconf/config/L3AVPN-EVC-API:services/service-list/{service-instance-id}/service-data/avpn-logicalchannel-information
+
+    # P-Interfaces
+    org.onap.ccsdk.sli.adaptors.aai.path.pserver.pinterfaces=/aai/v13/cloud-infrastructure/pservers/pserver/{hostname}/p-interfaces
+    org.onap.ccsdk.sli.adaptors.aai.path.pserver.pinterface=/aai/v13/cloud-infrastructure/pservers/pserver/{hostname}/p-interfaces/p-interface/{interface-name}
+
+    # VNF IMAGES
+    org.onap.ccsdk.sli.adaptors.aai.path.vnf.images=/aai/v13/service-design-and-creation/vnf-images
+    org.onap.ccsdk.sli.adaptors.aai.path.vnf.image=/aai/v13/service-design-and-creation/vnf-images/vnf-image/{att-uuid}
+    org.onap.ccsdk.sli.adaptors.aai.path.vnf.image.query=/aai/v13/service-design-and-creation/vnf-images/vnf-image?application={application_model}&application-vendor={application_vendor}
+
+    # service instance
+    org.onap.ccsdk.sli.adaptors.aai.path.svcinst.query=/aai/v13/search/generic-query?key=service-instance.service-instance-id:{svc-instance-id}&start-node-type=service-instance&include=service-instance
+    org.onap.ccsdk.sli.adaptors.aai.path.service.instance=/aai/v13/business/customers/customer/{global-customer-id}/service-subscriptions/service-subscription/{service-type}/service-instances/service-instance/{service-instance-id}
+
+    # VNF IMAGES QUERY
+    org.onap.ccsdk.sli.adaptors.aai.path.vnf.image.query=/aai/v13/service-design-and-creation/vnf-images/vnf-image?application={application_model}&application-vendor={application_vendor}
+
+    #
+    # Formatting
+    #
+    org.onap.ccsdk.sli.adaptors.aai.param.format=filter=%s:%s
+    org.onap.ccsdk.sli.adaptors.aai.param.vnf_type=vnf-type
+    org.onap.ccsdk.sli.adaptors.aai.param.physical.location.id=physical-location-id
+    org.onap.ccsdk.sli.adaptors.aai.param.service.type=service-type
+  akka.conf: |2+
+
+    odl-cluster-data {
+      akka {
+        remote {
+          artery {
+            enabled = off
+            canonical.hostname = "127.0.0.1"
+            canonical.port = 2550
+          }
+          netty.tcp {
+            hostname = "127.0.0.1"
+            port = 2550
+          }
+
+          use-passive-connections = off
+          # when under load we might trip a false positive on the failure detector
+          # transport-failure-detector {
+          # heartbeat-interval = 4 s
+          # acceptable-heartbeat-pause = 16s
+          # }
+        }
+
+        actor {
+          debug {
+            autoreceive = on
+            lifecycle = on
+            unhandled = on
+            fsm = on
+            event-stream = on
+          }
+        }
+
+        cluster {
+          # Remove ".tcp" when using artery.
+          seed-nodes = ["akka.tcp://opendaylight-cluster-data@127.0.0.1:2550"]
+
+          seed-node-timeout = 15s
+
+          roles = ["member-1"]
+
+        }
+
+        persistence {
+          # By default the snapshots/journal directories live in KARAF_HOME. You can choose to put it somewhere else by
+          # modifying the following two properties. The directory location specified may be a relative or absolute path.
+          # The relative path is always relative to KARAF_HOME.
+
+          # snapshot-store.local.dir = "target/snapshots"
+          # journal.leveldb.dir = "target/journal"
+
+          journal {
+            leveldb {
+                # Set native = off to use a Java-only implementation of leveldb.
+                # Note that the Java-only version is not currently considered by Akka to be production quality.
+
+                # native = off
+            }
+
+            journal-plugin-fallback {
+              circuit-breaker {
+                  max-failures = 10
+                  call-timeout = 90s
+                  reset-timeout = 30s
+              }
+              recovery-event-timeout = 90s
+            }
+
+            snapshot-store-plugin-fallback {
+              circuit-breaker {
+                max-failures = 10
+                call-timeout = 90s
+                reset-timeout = 30s
+              }
+              recovery-event-timeout = 90s
+            }
+          }
+        }
+      }
+    }
+
+  blueprints-processor-adaptor.properties: |2
+
+
+    org.onap.ccsdk.features.blueprints.adaptors.envtype=solo
+
+    # Config Generator Microservices
+    org.onap.ccsdk.features.blueprints.adaptors.modelservice.type=generic
+    org.onap.ccsdk.features.blueprints.adaptors.modelservice.enable=true
+    org.onap.ccsdk.features.blueprints.adaptors.modelservice.url=http://controller-blueprints:8080/api/v1/
+    org.onap.ccsdk.features.blueprints.adaptors.modelservice.user=${MODELSERVICE_USER}
+    org.onap.ccsdk.features.blueprints.adaptors.modelservice.passwd=${MODELSERVICE_PASSWORD}
+
+    # Generic RESTCONF Adaptor
+    org.onap.ccsdk.features.blueprints.adaptors.restconf.type=generic
+    org.onap.ccsdk.features.blueprints.adaptors.restconf.enable=true
+    org.onap.ccsdk.features.blueprints.adaptors.restconf.user=${RESTCONF_USER}
+    org.onap.ccsdk.features.blueprints.adaptors.restconf.passwd=${RESTCONF_PASSWORD}
+    org.onap.ccsdk.features.blueprints.adaptors.restconf.url=http://sdnc:8282/restconf/
+  dblib.properties: |2
+
+    org.onap.ccsdk.sli.dbtype=jdbc
+    org.onap.ccsdk.sli.jdbc.hosts=sdnctldb01
+    org.onap.ccsdk.sli.jdbc.url=jdbc:mysql://mariadb-galera:3306/sdnctl
+    org.onap.ccsdk.sli.jdbc.driver=org.mariadb.jdbc.Driver
+    org.onap.ccsdk.sli.jdbc.database=sdnctl
+    org.onap.ccsdk.sli.jdbc.user=${SDNC_DB_USER}
+    org.onap.ccsdk.sli.jdbc.password=${SDNC_DB_PASSWORD}
+    org.onap.ccsdk.sli.jdbc.connection.name=sdnctldb01
+    org.onap.ccsdk.sli.jdbc.connection.timeout=50
+    org.onap.ccsdk.sli.jdbc.request.timeout=100
+    org.onap.ccsdk.sli.jdbc.limit.init=10
+    org.onap.ccsdk.sli.jdbc.limit.min=10
+    org.onap.ccsdk.sli.jdbc.limit.max=20
+    org.onap.dblib.connection.recovery=false
+  lcm-dg.properties: |
+    #ANSIBLE
+    ansible.agenturl=http://sdnc-ansible-server:8000/Dispatch
+    ansible.user=${ANSIBLE_USER}
+    ansible.password=${ANSIBLE_PASSWORD}
+    ansible.lcm.localparameters=
+    ansible.nodelist=
+    ansible.timeout=60
+    ansible.version=0.00
+    lcm.upgrade-pre-check.playbookname=ansible_precheck
+    lcm.upgrade-post-check.playbookname=ansible_postcheck
+    lcm.upgrade-software.playbookname=ansible_upgradesw
+    lcm.pnf.upgrade-pre-check.playbookname=ansible_precheck_pnf
+    lcm.pnf.upgrade-post-check.playbookname=ansible_postcheck_pnf
+    lcm.pnf.upgrade-software.playbookname=ansible_upgradesw_pnf
+    lcm.quiesce-traffic.playbookname=ansible_quiescetraffic
+    lcm.resume-traffic.playbookname=ansible_resumetraffic
+    lcm.distribute-traffic.playbookname=ansible_distributetraffic
+
+    #RESTAPI INTERFACEs
+    restapi.templateDir=/opt/onap/sdnc/restapi/templates
+
+    #RESTCONF
+    lcm.restconf.configscaleout.templatefile=lcm-restconf-configscaleout.json
+    lcm.restconf.configscaleout.urlpath=/restconf/config/vlb-business-vnf-onap-plugin:vlb-business-vnf-onap-plugin/vdns-instances/vdns-instance/
+    lcm.restconf.configscaleout.geturlpath=/restconf/operational/health-vnf-onap-plugin:health-vnf-onap-plugin-state/health-check
+    lcm.restconf.configscaleout.user=${SCALEOUT_USER}
+    lcm.restconf.configscaleout.password=${SCALEOUT_PASSWORD}
+    lcm.restconf.user=${RESTCONF_USER}
+    lcm.restconf.password=${RESTCONF_PASSWORD}
+    lcm.restconf.port=8183
+
+    #DMAAP
+    restapi.lcm.dmaap.publish.templatefile=lcm-dmaap-publish-template.json
+    lcm.dmaap.url=http://message-router.onap:3904/events/SDNC-LCM-WRITE
+    lcm.dmaap.user=
+    lcm.dmaap.password=
+    lcm.dmaap.version=1.0
+    lcm.dmaap.partition=MSO
+    lcm.dmaap.type=response
+  mountpoint-registrar.properties: |
+    [general]
+    dmaapEnabled=true
+
+    baseUrl=https://localhost:8443
+    sdnrUser=${ODL_ADMIN_USERNAME}
+    sdnrPasswd=${ODL_ADMIN_PASSWORD}
+
+    [fault]
+    faultConsumerClass=org.onap.ccsdk.features.sdnr.wt.mountpointregistrar.impl.DMaaPFaultVESMsgConsumer
+    TransportType=HTTPNOAUTH
+    host=message-router.onap:3904
+    topic=unauthenticated.SEC_FAULT_OUTPUT
+    contenttype=application/json
+    group=myG
+    id=C1
+    limit=10000
+
+    [pnfRegistration]
+    pnfRegConsumerClass=org.onap.ccsdk.features.sdnr.wt.mountpointregistrar.impl.DMaaPPNFRegVESMsgConsumer
+    TransportType=HTTPNOAUTH
+    host=message-router.onap:3904
+    topic=unauthenticated.VES_PNFREG_OUTPUT
+    contenttype=application/json
+    group=myG
+    id=C1
+    limit=10000
+  mountpoint-state-provider.properties: |
+    [general]
+    dmaapEnabled=true
+    TransportType=HTTPNOAUTH
+    host=message-router.onap:3904
+    topic=unauthenticated.SDNR_MOUNTPOINT_STATE_INFO
+    contenttype=application/json
+    timeout=20000
+    limit=10000
+    maxBatchSize=100
+    maxAgeMs=250
+    MessageSentThreadOccurance=50
+  netbox.properties: |2-
+
+
+    # Configuration file for Netbox client
+    org.onap.ccsdk.sli.adaptors.netbox.url=http://netbox-app.onap:8001
+    org.onap.ccsdk.sli.adaptors.netbox.apikey=${NETBOX_API_KEY}
+  oauth-provider.config.json: |
+    {
+        "tokenSecret": "${OAUTH_TOKEN_SECRET}",
+        "tokenIssuer": "ONAP SDNC",
+        "publicUrl": "none",
+        "redirectUri": "null",
+        "supportOdlUsers": "true",
+        "providers": [{"clientId":"odlux.app","host":"http://keycloak:8080","id":"keycloak","roleMapping":{"mykeycloak":"admin"},"scope":"openid","secret":"${KEYCLOAK_SECRET}","title":"ONAP Keycloak Provider","type":"KEYCLOAK"}]
+    }
+  org.opendaylight.aaa.filterchain.cfg: |
+    customFilterList=org.onap.ccsdk.sli.core.filters.ControllerAuditLogFilter,org.onap.ccsdk.sli.core.filters.ControllerPayloadLoggingFilter
+  org.opendaylight.controller.cluster.datastore.cfg: |
+    # This file specifies property settings for the clustered data store to control its behavior. A
+    # property may be applied to every data store type ("config" and "operational") or can be customized
+    # differently for each data store type by prefixing the data store type + '.'. For example, specifying
+    # the "shard-election-timeout-factor" property would be applied to both data stores whereas specifying
+    # "operational.shard-election-timeout-factor" would only apply to the "operational" data store. Similarly,
+    # specifying "config.shard-election-timeout-factor" would only apply to the "config" data store.
+
+    # The multiplication factor to be used to determine shard election timeout. The shard election timeout
+    # is determined by multiplying shardHeartbeatIntervalInMillis with the shardElectionTimeoutFactor.
+    shard-election-timeout-factor=20
+
+    # The interval at which a shard will send a heart beat message to its remote shard.
+    #shard-heartbeat-interval-in-millis=500
+
+    # The amount by which to divide election timeout in case of a candidate. This serves as a counter-balance
+    # to shard-election-timeout-factor. The default value is 1, i.e. election timeout is the same in all
+    # situations.
+    #shard-candidate-election-timeout-divisor=1
+
+    # The maximum amount of time to wait for a shard to elect a leader before failing an operation (eg transaction create).
+    #shard-leader-election-timeout-in-seconds=30
+
+    # Enable or disable data persistence.
+    #persistent=true
+
+    # Disable persistence for the operational data store by default.
+    operational.persistent=false
+
+    # The maximum amount of time a shard transaction can be idle without receiving any messages before it self-destructs.
+    #shard-transaction-idle-timeout-in-minutes=10
+
+    # The maximum amount of time a shard transaction three-phase commit can be idle without receiving the
+    # next messages before it aborts the transaction.
+    #shard-transaction-commit-timeout-in-seconds=30
+
+    # The maximum allowed capacity for each shard's transaction commit queue.
+    #shard-transaction-commit-queue-capacity=20000
+
+    # The maximum amount of time to wait for a shard to initialize from persistence on startup before
+    # failing an operation (eg transaction create and change listener registration).
+    #shard-initialization-timeout-in-seconds=300
+
+    # The minimum number of entries to be present in the in-memory journal log before a snapshot is to be taken.
+    #shard-snapshot-batch-count=20000
+
+    # The percentage of Runtime.totalMemory() used by the in-memory journal log before a snapshot is to be taken.
+    #shard-snapshot-data-threshold-percentage=12
+
+    # The interval at which the leader of the shard will check if its majority followers are active and
+    # term itself as isolated.
+    #shard-isolated-leader-check-interval-in-millis=5000
+
+    # The number of transaction modification operations (put, merge, delete) to batch before sending to the
+    # shard transaction actor. Batching improves performance as less modifications messages are sent to the
+    # actor and thus lessens the chance that the transaction actor's mailbox queue could get full.
+    #shard-batched-modification-count=1000
+
+    # The maximum amount of time for akka operations (remote or local) to complete before failing.
+    #operation-timeout-in-seconds=5
+
+    # The initial number of transactions per second that are allowed before the data store should begin
+    # applying back pressure. This number is only used as an initial guidance, subsequently the datastore
+    # measures the latency for a commit and auto-adjusts the rate limit.
+    #transaction-creation-initial-rate-limit=100
+
+    # The maximum thread pool size for each shard's data store data change notification executor.
+    #max-shard-data-change-executor-pool-size=20
+
+    # The maximum queue size for each shard's data store data change notification executor.
+    #max-shard-data-change-executor-queue-size=1000
+
+    # The maximum queue size for each shard's data store data change listener.
+    #max-shard-data-change-listener-queue-size=1000
+
+    # The maximum queue size for each shard's data store executor.
+    #max-shard-data-store-executor-queue-size=5000
+
+    # A fully qualified java class name. The class should implement
+    # org.opendaylight.controller.cluster.raft.policy.RaftPolicy. This java class should be
+    # accessible to the distributed data store OSGi module so that it can be dynamically loaded via
+    # reflection. For now let's assume that these classes to customize raft behaviors should be
+    # present in the distributed data store module itself. If this property is set to a class which
+    # cannot be found then the default raft policy will be applied
+    #custom-raft-policy-implementation=
+
+    # When fragmenting messages thru the akka remoting framework, this is the maximum size in bytes
+    # for a message slice.
+    #maximum-message-slice-size=20480000
+
+    # Enable tell-based protocol between frontend (applications) and backend (shards). Using this protocol
+    # should avoid AskTimeoutExceptions seen under heavy load. Defaults to false (use ask-based protocol).
+    #use-tell-based-protocol=true
+
+    # Tune the maximum number of entries a follower is allowed to lag behind the leader before it is
+    # considered out-of-sync. This flag may require tuning in face of a large number of small transactions.
+    #sync-index-threshold=10
+
+    # Record new transaction allocation stack trace, useful for debugging.  This makes the log include
+    # the stack trace of the creator of the Tx when there is an exception when the transaction is submitted
+    # (e.g. for a failed validation).  Defaults to false due to performance impact.
+    #transaction-debug-context-enabled=true
+    persistent-actor-restart-min-backoff-in-seconds=10
+    persistent-actor-restart-max-backoff-in-seconds=40
+    persistent-actor-restart-reset-backoff-in-seconds=20
+    shard-transaction-commit-timeout-in-seconds=120
+    shard-isolated-leader-check-interval-in-millis=30000
+    operation-timeout-in-seconds=120
+  org.opendaylight.daexim.cfg: |-
+    # Daexim directory location
+    # absolute path or path relative to Karaf home directory
+    # property substitution (interpolation) currently only supported for "${karaf.home}", no others (hard-coded) -- M.
+    daexim.dir=/opt/opendaylight/mdsal/daexim
+  setenv: |
+    #!/bin/sh
+
+    if [ "x$JAVA_MAX_MEM" = "x" ]; then
+        export JAVA_MAX_MEM="2048m"
+    fi
+
+    EXTRA_JAVA_OPTS=${EXTRA_JAVA_OPTS:-"-XX:+UseG1GC \
+     -XX:MaxGCPauseMillis=100 \
+     -XX:ParallelGCThreads=3 \
+     -XX:+ParallelRefProcEnabled \
+     -XX:+UseStringDeduplication "}
+  svclogic.properties: |2
+
+
+    org.onap.ccsdk.sli.dbtype = jdbc
+    org.onap.ccsdk.sli.jdbc.url = jdbc:mysql://mariadb-galera:3306/sdnctl
+    org.onap.ccsdk.sli.jdbc.database = sdnctl
+    org.onap.ccsdk.sli.jdbc.user = ${SDNC_DB_USER}
+    org.onap.ccsdk.sli.jdbc.password = ${SDNC_DB_PASSWORD}
+---
+# Source: onap/charts/sdnc/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-sdnc-env
+  namespace: onap
+  labels:
+    app: sdnc
+    chart: sdnc-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  SDNC_AAF_ENABLED: "true"
+  SDNC_GEO_ENABLED: "false"
+  SDNC_IS_PRIMARY_CLUSTER: "true"
+  SDNC_ODL_COUNT: "1"
+  SDNC_LOCAL_K8S_CLUSTER_MASTER: "127.0.0.1"
+  SDNC_REMOTE_K8S_CLUSTER_MASTER: "127.0.0.1"

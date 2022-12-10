@@ -1,0 +1,18 @@
+# Source: onap/charts/aaf/charts/aaf-cass/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: onap-aaf-cass
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: aaf-cass
+    helm.sh/chart: aaf-cass-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+  - ReadWriteOnce
+  storageClassName: onap-aaf-cass-data
+  resources:
+    requests:
+      storage: 5Gi

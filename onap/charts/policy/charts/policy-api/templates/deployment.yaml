@@ -1,0 +1,219 @@
+# Source: onap/charts/policy/charts/policy-api/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-policy-api
+  namespace: onap
+  labels:
+    app: policy-api
+    chart: policy-api-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  selector:
+    matchLabels:
+      app: policy-api
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: policy-api
+        release: onap
+    spec:
+      initContainers:
+        - command:
+            - /app/ready.py
+          args:
+            - --job-name
+            - onap-policy-galera-config
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+          image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+          imagePullPolicy: IfNotPresent
+          name: policy-api-readiness
+        - command:
+            - sh
+          args:
+            - -c
+            - "cd /config-input && for PFILE in `ls -1`; do envsubst <${PFILE} >/config/${PFILE}; done"
+          env:
+            - name: SQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-db-secret
+                  key: login
+            - name: SQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-db-secret
+                  key: password
+            - name: RESTSERVER_USER
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-api-user-creds
+                  key: login
+            - name: RESTSERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-api-user-creds
+                  key: password
+          volumeMounts:
+            - mountPath: /config-input
+              name: apiconfig
+            - mountPath: /config
+              name: apiconfig-processed
+          image: docker.io/dibi/envsubst:1
+          imagePullPolicy: IfNotPresent
+          name: policy-api-update-config
+        - name: policy-api-cert-initializer-readiness
+          image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 100
+            runAsGroup: 65533
+          command:
+            - /app/ready.py
+          args:
+            - --container-name
+            - aaf-locate
+            - --container-name
+            - aaf-cm
+            - --container-name
+            - aaf-service
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 3m
+              memory: 20Mi
+        - name: policy-api-aaf-config
+          image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - mountPath: /opt/app/osaaf
+              name: onap-policy-api-aaf-config
+            - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+              name: aaf-agent-certs
+              subPath: truststoreONAPall.jks.b64
+            - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+              name: aaf-agent-certs
+              subPath: truststoreONAP.p12.b64
+            - name: aaf-add-config
+              mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+              subPath: retrieval_check.sh
+            - name: aaf-add-config
+              mountPath: /opt/app/aaf_config/bin/aaf-add-config.sh
+              subPath: aaf-add-config.sh
+          command:
+            - sh
+            - -c
+            - |
+              /opt/app/aaf_config/bin/agent.sh
+              . /opt/app/aaf_config/bin/retrieval_check.sh
+              /opt/app/aaf_config/bin/aaf-add-config.sh
+          env:
+            - name: APP_FQI
+              value: "policy@policy.onap.org"
+            - name: aaf_locate_url
+              value: "https://aaf-locate.onap:8095"
+            - name: aaf_locator_container_ns
+              value: "onap"
+            - name: aaf_locator_container
+              value: "oom"
+            - name: aaf_locator_fqdn
+              value: "policy"
+            - name: aaf_locator_app_ns
+              value: "org.osaaf.aaf"
+            - name: DEPLOY_FQI
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-api-cert-initializer-deployer-creds
+                  key: login
+            - name: DEPLOY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-api-cert-initializer-deployer-creds
+                  key: password
+                  #Note: want to put this on Nodes, eventually
+            - name: cadi_longitude
+              value: "0.0"
+            - name: cadi_latitude
+              value: "0.0"
+              #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+            - name: aaf_locator_public_fqdn
+              value: "policy.onap.org"
+      containers:
+        - name: policy-api
+          image: nexus3.onap.org:10001/onap/policy-api:2.6.3
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args: ["source /opt/app/osaaf/local/.ci;/opt/app/policy/api/bin/policy-api.sh /opt/app/policy/api/etc/mounted/apiParameters.yaml"]
+          ports:
+            - containerPort: 6969
+          # disable liveness probe when breakpoints set in debugger
+          # so K8s doesn't restart unresponsive container
+          livenessProbe:
+            tcpSocket:
+              port: 6969
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /policy/api/v1/healthcheck
+              port: 6969
+              httpHeaders:
+                - name: Authorization
+                  value: Basic cG9saWN5YWRtaW46emIhWHp0RzM0
+              scheme: HTTPS
+            successThreshold: 1
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            periodSeconds: 120
+            timeoutSeconds: 60
+          volumeMounts:
+            - mountPath: /opt/app/osaaf
+              name: onap-policy-api-aaf-config
+            - mountPath: /etc/localtime
+              name: localtime
+              readOnly: true
+            - mountPath: /opt/app/policy/api/etc/mounted
+              name: apiconfig-processed
+          resources: {}
+      serviceAccountName: onap-policy-api-read
+      volumes:
+        - name: onap-policy-api-aaf-config
+          emptyDir:
+            medium: Memory
+        - name: aaf-agent-certs
+          configMap:
+            name: onap-cert-wrapper-certs
+            defaultMode: 0700
+        - name: aaf-add-config
+          configMap:
+            name: onap-policy-api-cert-initializer-add-config
+            defaultMode: 0700
+        - name: localtime
+          hostPath:
+            path: /etc/localtime
+        - name: apiconfig
+          configMap:
+            name: onap-policy-api-configmap
+            defaultMode: 0755
+        - name: apiconfig-processed
+          emptyDir:
+            medium: Memory
+      imagePullSecrets:
+        - name: "onap-docker-registry-key"

@@ -1,0 +1,235 @@
+# Source: onap/charts/dmaap/charts/dmaap-bc/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-dmaap-bc
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: dmaap-bc
+    helm.sh/chart: dmaap-bc-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dmaap-bc
+      app.kubernetes.io/instance: onap
+  replicas:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dmaap-bc
+        helm.sh/chart: dmaap-bc-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+      name: dmaap-bc
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 101
+        fsGroup: 101
+      initContainers:
+      - command:
+        - sh
+        args:
+        - -c
+        - "cd /config-input && for PFILE in `find . -not -type d | grep -v -F ..`; do envsubst <${PFILE} >/config/${PFILE}; done"
+        env:
+        - name: PG_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-dmaap-bc-pg-user-creds
+              key: login
+        - name: PG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-dmaap-bc-pg-user-creds
+              key: password
+        volumeMounts:
+        - mountPath: /config-input
+          name: dmaap-bc-config-input
+        - mountPath: /config
+          name: dmaap-bc-config
+        image: docker.io/dibi/envsubst:1
+        imagePullPolicy: IfNotPresent
+        name: dmaap-bc-update-config
+      - name: dmaap-bc-cert-initializer-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-locate
+        - --container-name
+        - aaf-cm
+        - --container-name
+        - aaf-service
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: dmaap-bc-aaf-config
+        image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-dmaap-bc-aaf-config
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAPall.jks.b64
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAP.p12.b64
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+          subPath: retrieval_check.sh
+        command:
+        - sh
+        - -c
+        - |
+          /opt/app/aaf_config/bin/agent.sh
+          . /opt/app/aaf_config/bin/retrieval_check.sh
+        env:
+        - name: APP_FQI
+          value: "dmaap-bc@dmaap-bc.onap.org"
+        - name: aaf_locate_url
+          value: "https://aaf-locate.onap:8095"
+        - name: aaf_locator_container_ns
+          value: "onap"
+        - name: aaf_locator_container
+          value: "oom"
+        - name: aaf_locator_fqdn
+          value: "dmaap-bc"
+        - name: aaf_locator_app_ns
+          value: "org.osaaf.aaf"
+        - name: DEPLOY_FQI
+          valueFrom:
+            secretKeyRef:
+              name: onap-dmaap-bc-cert-initializer-deployer-creds
+              key: login
+        - name: DEPLOY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-dmaap-bc-cert-initializer-deployer-creds
+              key: password
+              #Note: want to put this on Nodes, eventually
+        - name: cadi_longitude
+          value: "-72.0"
+        - name: cadi_latitude
+          value: "38.0"
+          #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+        - name: aaf_locator_public_fqdn
+          value: "aaf.osaaf.org"
+      - name: dmaap-bc-permission-fixer
+        securityContext:
+          runAsUser: 0
+        image: docker.io/busybox:1.34.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-dmaap-bc-aaf-config
+        command: ["chown", "-Rf", "1000:1001", "/opt/app/"]
+        #       See AAF-425 for explanation of why this is needed.
+        #       This artifact is provisioned in AAF for both pks12 and jks format and apparently
+        #       the cadi library is not using the jks password on the jks keystore.
+        #       So, this attempts to "fix" the credential property file until this is fixed properly.
+      - name: dmaap-bc-cred-fixer
+        image: docker.io/busybox:1.34.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-dmaap-bc-aaf-config
+        command: ["/bin/sh"]
+        args: ["-c", "sed -i -e '/cadi_keystore_password=/d' -e '/cadi_keystore_password_jks/p' -e 's/cadi_keystore_password_jks/cadi_keystore_password/' -e 's/dmaap-bc.p12/dmaap-bc.jks/' /opt/app/osaaf/local/org.onap.dmaap-bc.cred.props"]
+      - name: dmaap-bc-postgres-readiness
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - dbc-pg
+        - --container-name
+        - message-router
+        - --container-name
+        - dmaap-dr-node
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+      containers:
+      - name: dmaap-bc
+        image: nexus3.onap.org:10001/onap/dmaap/dmaap-bc:2.0.8
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8443
+          name: api
+        livenessProbe:
+          httpGet:
+            port: api
+            path: /webapi/topics
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            port: api
+            path: /webapi/topics
+            scheme: HTTPS
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-dmaap-bc-aaf-config
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+          # NOTE: on the following several configMaps, careful to include / at end
+          #       since there may be more than one file in each mountPath
+        - name: dmaap-bc-config
+          mountPath: /opt/app/config/conf/
+        resources: {}
+      serviceAccountName: onap-dmaap-bc-read
+      volumes:
+      - name: onap-dmaap-bc-aaf-config
+        emptyDir:
+          medium: Memory
+      - name: aaf-agent-certs
+        configMap:
+          name: onap-cert-wrapper-certs
+          defaultMode: 0700
+      - name: aaf-add-config
+        configMap:
+          name: onap-dmaap-bc-cert-initializer-add-config
+          defaultMode: 0700
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: dmaap-bc-config-input
+        configMap:
+          name: onap-dmaap-bc-config
+      - name: dmaap-bc-config
+        emptyDir:
+          medium: Memory
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

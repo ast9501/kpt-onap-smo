@@ -1,0 +1,209 @@
+# Source: onap/charts/dmaap/charts/dmaap-dr-prov/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-dmaap-dr-prov
+  namespace: onap
+  labels:
+    app: dmaap-dr-prov
+    chart: dmaap-dr-prov-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  selector:
+    matchLabels:
+      app: dmaap-dr-prov
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: dmaap-dr-prov
+        release: onap
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      hostname: dmaap-dr-prov
+      initContainers:
+        - name: dmaap-dr-prov-readiness
+          securityContext:
+            runAsUser: 100
+            runAsGroup: 65533
+          image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+          imagePullPolicy: IfNotPresent
+          command:
+            - /app/ready.py
+          args:
+            - --job-name
+            - onap-dmaap-dr-mariadb-init-config-job
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+        - name: dmaap-dr-prov-cert-initializer-readiness
+          image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 100
+            runAsGroup: 65533
+          command:
+            - /app/ready.py
+          args:
+            - --container-name
+            - aaf-locate
+            - --container-name
+            - aaf-cm
+            - --container-name
+            - aaf-service
+          env:
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+          resources:
+            limits:
+              cpu: 100m
+              memory: 100Mi
+            requests:
+              cpu: 3m
+              memory: 20Mi
+        - name: dmaap-dr-prov-aaf-config
+          image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - mountPath: /opt/app/osaaf
+              name: onap-dmaap-dr-prov-aaf-config
+            - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+              name: aaf-agent-certs
+              subPath: truststoreONAPall.jks.b64
+            - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+              name: aaf-agent-certs
+              subPath: truststoreONAP.p12.b64
+            - name: aaf-add-config
+              mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+              subPath: retrieval_check.sh
+          command:
+            - sh
+            - -c
+            - |
+              /opt/app/aaf_config/bin/agent.sh
+              . /opt/app/aaf_config/bin/retrieval_check.sh
+          env:
+            - name: APP_FQI
+              value: "dmaap-dr-prov@dmaap-dr.onap.org"
+            - name: aaf_locate_url
+              value: "https://aaf-locate.onap:8095"
+            - name: aaf_locator_container_ns
+              value: "onap"
+            - name: aaf_locator_container
+              value: "oom"
+            - name: aaf_locator_fqdn
+              value: "dmaap-dr-prov"
+            - name: aaf_locator_app_ns
+              value: "org.osaaf.aaf"
+            - name: DEPLOY_FQI
+              valueFrom:
+                secretKeyRef:
+                  name: onap-dmaap-dr-prov-cert-initializer-deployer-creds
+                  key: login
+            - name: DEPLOY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: onap-dmaap-dr-prov-cert-initializer-deployer-creds
+                  key: password
+                  #Note: want to put this on Nodes, eventually
+            - name: cadi_longitude
+              value: "-72.0"
+            - name: cadi_latitude
+              value: "38.0"
+              #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+            - name: aaf_locator_public_fqdn
+              value: "aaf.osaaf.org"
+        - name: dmaap-dr-prov-permission-fixer
+          securityContext:
+            runAsUser: 0
+          image: docker.io/busybox:1.34.1
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /opt/app/osaaf
+              name: onap-dmaap-dr-prov-aaf-config
+          command: ["chown", "-Rf", "1000:1001", "/opt/app/"]
+      containers:
+        - name: dmaap-dr-prov
+          image: nexus3.onap.org:10001/onap/dmaap/datarouter-prov:2.1.10
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          env:
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: onap-dmaap-dr-db-user-credentials
+                  key: login
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: onap-dmaap-dr-db-user-credentials
+                  key: password
+          volumeMounts:
+            - mountPath: /opt/app/osaaf
+              name: onap-dmaap-dr-prov-aaf-config
+            - mountPath: /etc/localtime
+              name: localtime
+              readOnly: false
+            - mountPath: /opt/app/datartr/etc/provserver.properties
+              name: onap-dmaap-dr-prov-config
+              subPath: provserver.properties
+            - mountPath: /opt/app/datartr/etc/logback.xml
+              name: onap-dmaap-dr-prov-log-conf
+              subPath: logback.xml
+            - mountPath: /opt/app/datartr/logs
+              name: logs
+          resources: {}
+      # Filebeat sidecar container
+
+      serviceAccountName: onap-dmaap-dr-prov-read
+      volumes:
+        - name: onap-dmaap-dr-prov-aaf-config
+          emptyDir:
+            medium: Memory
+        - name: aaf-agent-certs
+          configMap:
+            name: onap-cert-wrapper-certs
+            defaultMode: 0700
+        - name: aaf-add-config
+          configMap:
+            name: onap-dmaap-dr-prov-cert-initializer-add-config
+            defaultMode: 0700
+        - name: localtime
+          hostPath:
+            path: /etc/localtime
+        - name: onap-dmaap-dr-prov-config
+          configMap:
+            name: onap-dmaap-dr-prov-configmap
+            items:
+              - key: provserver.properties
+                path: provserver.properties
+        - name: onap-dmaap-dr-prov-log-conf
+          configMap:
+            name: onap-dmaap-dr-prov-log
+        - name: logs
+          emptyDir: {}
+      imagePullSecrets:
+        - name: "onap-docker-registry-key"

@@ -1,0 +1,23 @@
+# Source: onap/charts/sdnc/charts/elasticsearch/charts/master/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: sdnrdb-service
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: sdnrdb
+    helm.sh/chart: master-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 9300
+    targetPort: http-transport
+    protocol: TCP
+    name: http-transport
+  ipFamilyPolicy: PreferDualStack
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: sdnrdb
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

@@ -1,0 +1,81 @@
+# Source: onap/charts/aaf/charts/aaf-sms/charts/aaf-sms-quorumclient/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: onap-aaf-sms-quorumclient
+  namespace: onap
+  labels:
+    app: aaf-sms-quorumclient
+    chart: aaf-sms-quorumclient-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: aaf-sms-quorumclient
+  serviceName: aaf-sms
+  template:
+    metadata:
+      labels:
+        app: aaf-sms-quorumclient
+        release: onap
+    spec:
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"
+      initContainers:
+      - name: fix-permission
+        command:
+        - /bin/sh
+        args:
+        - -c
+        - |
+          chmod -R 775 /quorumclient/auth
+          chown -R 100:1000 /quorumclient/auth
+        image: docker.io/busybox:1.34.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /quorumclient/auth
+          name: onap-aaf-sms-quorumclient-data
+      containers:
+      - image: nexus3.onap.org:10001/onap/aaf/smsquorumclient:4.0.2
+        name: aaf-sms-quorumclient
+        imagePullPolicy: IfNotPresent
+        command: ["/quorumclient/bin/quorumclient"]
+        workingDir: /quorumclient/
+        volumeMounts:
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /quorumclient/config.json
+          name: aaf-sms-quorumclient
+          subPath: config.json
+        - mountPath: /quorumclient/auth
+          name: onap-aaf-sms-quorumclient-data
+        resources: {}
+      volumes:
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: aaf-sms-quorumclient
+        configMap:
+          name: onap-aaf-sms-quorumclient
+          items:
+          - key: config.json
+            path: config.json
+            mode: 0755
+  volumeClaimTemplates:
+  - metadata:
+      name: onap-aaf-sms-quorumclient-data
+      labels:
+        name: onap-aaf-sms-quorumclient
+        chart: "aaf-sms-quorumclient-10.0.0"
+        release: "onap"
+        heritage: "Helm"
+    spec:
+      accessModes:
+      - "ReadWriteOnce"
+      storageClassName: onap-aaf-sms-quorumclient-data
+      resources:
+        requests:
+          storage: "10Mi"

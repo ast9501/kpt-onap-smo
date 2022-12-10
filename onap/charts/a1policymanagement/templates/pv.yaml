@@ -1,0 +1,20 @@
+# Source: onap/charts/a1policymanagement/templates/pv.yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: onap-a1policymanagement--0
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: a1policymanagement
+    helm.sh/chart: a1policymanagement-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "onap-a1policymanagement-data"
+  hostPath:
+    path: /dockerdata-nfs/deployment-1670599359/onap/nonrtric/policymanagementservice-0

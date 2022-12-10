@@ -1,0 +1,21 @@
+# Source: onap/charts/aaf/charts/aaf-sms/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: aaf-sms
+  namespace: onap
+  labels:
+    app: onap-aaf-sms
+    chart: aaf-sms-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - name:
+    port: 10443
+    targetPort: 10443
+    protocol: TCP
+  selector:
+    app: aaf-sms
+    release: onap

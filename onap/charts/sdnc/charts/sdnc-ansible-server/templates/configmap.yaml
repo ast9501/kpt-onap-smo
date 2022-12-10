@@ -1,0 +1,46 @@
+# Source: onap/charts/sdnc/charts/sdnc-ansible-server/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-sdnc-ansible-server
+  namespace: onap
+  labels:
+    app: sdnc-ansible-server
+    chart: sdnc-ansible-server-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  RestServer_config: |2
+
+
+    # Host definition
+    ip:     0.0.0.0
+    port:   8000
+
+    # Security (controls use of TLS encrypton and RestServer authentication)
+    tls:    no
+    auth:   no
+
+    # TLS certificates (must be built on application host)
+    priv:   provide_privated_key.pem
+    pub:    provide_public_key.pem
+
+    # RestServer authentication
+    id:     ${REST_USER}
+    psswd:  ${REST_PASSWORD}
+
+    # Mysql
+    host:   mariadb-galera
+    user:   ${DB_USER}
+    passwd: ${DB_PASSWORD}
+    db:     ansible
+
+    # Playbooks
+    from_files:             yes
+    ansible_path:           /opt/onap/sdnc/Playbooks
+    ansible_inv:            Ansible_inventory
+    ansible_temp:           PlaybooksTemp
+    timeout_seconds:        60
+
+    # Blocking on GetResults
+    getresults_block:       yes

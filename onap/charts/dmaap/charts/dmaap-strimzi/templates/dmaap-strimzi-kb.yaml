@@ -1,0 +1,23 @@
+# Source: onap/charts/dmaap/charts/dmaap-strimzi/templates/dmaap-strimzi-kb.yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaBridge
+metadata:
+  name: onap-dmaap-strimzi
+  namespace: onap
+  labels:
+    app: dmaap-strimzi
+    chart: dmaap-strimzi-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  replicas: 1
+  enableMetrics: false
+  bootstrapServers: onap-strimzi-kafka-bootstrap:9092
+  authentication:
+    type: scram-sha-512
+    username: strimzi-kafka-admin
+    passwordSecret:
+      secretName: strimzi-kafka-admin
+      password: password
+  http:
+    port: 8080

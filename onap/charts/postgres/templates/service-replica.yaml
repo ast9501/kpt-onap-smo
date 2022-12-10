@@ -1,0 +1,20 @@
+# Source: onap/charts/postgres/templates/service-replica.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: tcp-pgset-replica
+  namespace: onap
+  labels:
+    app: postgres-replica
+    chart: postgres-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: tcp-postgres
+  selector:
+    name: "pgset-replica"
+    release: onap

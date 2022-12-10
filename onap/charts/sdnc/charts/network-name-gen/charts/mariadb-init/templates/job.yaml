@@ -1,0 +1,81 @@
+# Source: onap/charts/sdnc/charts/network-name-gen/charts/mariadb-init/templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: onap-nengdb-init-config-job
+  namespace: onap
+  labels:
+    app: nengdb-init
+    chart: mariadb-init-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  backoffLimit: 20
+  template:
+    metadata:
+      labels:
+        app: nengdb-init
+        release: onap
+      name: nengdb-init
+    spec:
+      initContainers:
+      - name: nengdb-init-readiness
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - mariadb-galera
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+      containers:
+      - name: nengdb-init
+        image: docker.io/bitnami/mariadb:10.5.8
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -c
+        - "/db_init/db_init.sh \n"
+        env:
+        - name: DB_HOST
+          value: mariadb-galera
+        - name: DB_PORT
+          value: "3306"
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-mariadb-galera-db-root-password
+              key: password
+        - name: MYSQL_USER_NENGDB
+          valueFrom:
+            secretKeyRef:
+              name: onap-neng-db-secret
+              key: login
+        - name: MYSQL_PASSWORD_NENGDB
+          valueFrom:
+            secretKeyRef:
+              name: onap-neng-db-secret
+              key: password
+        volumeMounts:
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - name: mariadb-init
+          mountPath: /db_init/
+        resources: {}
+      volumes:
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: mariadb-init
+        configMap:
+          name: onap-nengdb-init
+          defaultMode: 0755
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

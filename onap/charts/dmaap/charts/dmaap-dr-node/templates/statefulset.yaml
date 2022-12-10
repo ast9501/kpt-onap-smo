@@ -1,0 +1,248 @@
+# Source: onap/charts/dmaap/charts/dmaap-dr-node/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: onap-dmaap-dr-node
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: dmaap-dr-node
+    helm.sh/chart: dmaap-dr-node-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dmaap-dr-node
+      app.kubernetes.io/instance: onap
+  serviceName: dmaap-dr-node
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dmaap-dr-node
+        helm.sh/chart: dmaap-dr-node-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+      name: dmaap-dr-node
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      initContainers:
+      - name: dmaap-dr-node-cert-initializer-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-locate
+        - --container-name
+        - aaf-cm
+        - --container-name
+        - aaf-service
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: dmaap-dr-node-aaf-config
+        image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-dmaap-dr-node-aaf-config
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAPall.jks.b64
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAP.p12.b64
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+          subPath: retrieval_check.sh
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/aaf-add-config.sh
+          subPath: aaf-add-config.sh
+        command:
+        - sh
+        - -c
+        - |
+          /opt/app/aaf_config/bin/agent.sh
+          . /opt/app/aaf_config/bin/retrieval_check.sh
+          /opt/app/aaf_config/bin/aaf-add-config.sh
+        env:
+        - name: APP_FQI
+          value: "dmaap-dr-node@dmaap-dr.onap.org"
+        - name: aaf_locate_url
+          value: "https://aaf-locate.onap:8095"
+        - name: aaf_locator_container_ns
+          value: "onap"
+        - name: aaf_locator_container
+          value: "oom"
+        - name: aaf_locator_fqdn
+          value: "dmaap-dr-node"
+        - name: aaf_locator_app_ns
+          value: "org.osaaf.aaf"
+        - name: DEPLOY_FQI
+          valueFrom:
+            secretKeyRef:
+              name: onap-dmaap-dr-node-cert-initializer-deployer-creds
+              key: login
+        - name: DEPLOY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-dmaap-dr-node-cert-initializer-deployer-creds
+              key: password
+              #Note: want to put this on Nodes, eventually
+        - name: cadi_longitude
+          value: "0.0"
+        - name: cadi_latitude
+          value: "0.0"
+          #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+        - name: aaf_locator_public_fqdn
+          value: "dmaap-dr.onap.org"
+      - name: dmaap-dr-node-readiness
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - dmaap-dr-prov
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+      - name: dmaap-dr-node-permission-fixer
+        securityContext:
+          runAsUser: 0
+        image: docker.io/busybox:1.34.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-dmaap-dr-node-aaf-config
+        - mountPath: /opt/app/datartr/spool
+          name: onap-dmaap-dr-node-spool
+        - mountPath: /opt/app/datartr/logs
+          name: onap-dmaap-dr-node-event-logs
+        command: ["chown", "-Rf", "1000:1001", "/opt/app/"]
+      containers:
+      - name: dmaap-dr-node
+        image: nexus3.onap.org:10001/onap/dmaap/datarouter-node:2.1.10
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8443
+          name: api
+        - containerPort: 8080
+          name: api-plain
+        livenessProbe:
+          tcpSocket:
+            port: api
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: api
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-dmaap-dr-node-aaf-config
+        - mountPath: /opt/app/datartr/spool
+          name: onap-dmaap-dr-node-spool
+        - mountPath: /opt/app/datartr/logs
+          name: onap-dmaap-dr-node-event-logs
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: false
+        - mountPath: /opt/app/datartr/etc/node.properties
+          name: onap-dmaap-dr-node-config
+          subPath: node.properties
+        - mountPath: /opt/app/datartr/etc/logback.xml
+          name: onap-dmaap-dr-node-log-conf
+          subPath: logback.xml
+        - mountPath: /var/log/onap/datarouter
+          name: logs
+        resources: {}
+      # Filebeat sidecar container
+
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"
+      serviceAccountName: onap-dmaap-dr-node-read
+      volumes:
+      - name: onap-dmaap-dr-node-aaf-config
+        emptyDir:
+          medium: Memory
+      - name: aaf-agent-certs
+        configMap:
+          name: onap-cert-wrapper-certs
+          defaultMode: 0700
+      - name: aaf-add-config
+        configMap:
+          name: onap-dmaap-dr-node-cert-initializer-add-config
+          defaultMode: 0700
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: onap-dmaap-dr-node-config
+        configMap:
+          name: onap-dmaap-dr-node-configmap
+          items:
+          - key: node.properties
+            path: node.properties
+      - name: onap-dmaap-dr-node-log-conf
+        configMap:
+          name: onap-dmaap-dr-node-log
+      - name: logs
+        emptyDir: {}
+  volumeClaimTemplates:
+  - metadata:
+      name: onap-dmaap-dr-node-spool
+      namespace: onap
+      labels:
+        app.kubernetes.io/name: dmaap-dr-node
+        helm.sh/chart: dmaap-dr-node-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: onap-dmaap-dr-node-spool
+      resources:
+        requests:
+          storage: 2Gi
+  - metadata:
+      name: onap-dmaap-dr-node-event-logs
+      namespace: onap
+      labels:
+        app.kubernetes.io/name: dmaap-dr-node
+        helm.sh/chart: dmaap-dr-node-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: onap-dmaap-dr-node-event-logs
+      resources:
+        requests:
+          storage: 2Gi

@@ -1,0 +1,18 @@
+# Source: onap/charts/aaf/charts/aaf-sms/templates/pvc.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: onap-aaf-sms
+  namespace: onap
+  labels:
+    app: aaf-sms
+    chart: "aaf-sms-10.0.0"
+    release: "onap"
+    heritage: "Helm"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: onap-aaf-sms-data

@@ -1,0 +1,135 @@
+# Source: onap/charts/dcaegen2-services/charts/dcae-ves-collector/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-dcae-ves-collector
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: dcae-ves-collector
+    helm.sh/chart: dcae-ves-collector-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+    dcaeMicroserviceName: onap-dcae-ves-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dcae-ves-collector
+      app.kubernetes.io/instance: onap
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dcae-ves-collector
+        helm.sh/chart: dcae-ves-collector-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+      name: dcae-ves-collector
+    spec:
+      initContainers:
+      - command:
+        - sh
+        args:
+        - -c
+        - |
+          cd /config-input && for PFILE in `ls -1`; do envsubst <${PFILE} >/config/${PFILE}; done
+        env:
+        volumeMounts:
+        - mountPath: /config-input
+          name: app-config-input
+        - mountPath: /config
+          name: app-config
+        image: docker.io/dibi/envsubst:1
+        imagePullPolicy: IfNotPresent
+        name: dcae-ves-collector-update-config
+      - name: dcae-ves-collector-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-cm
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: init-tls
+        image: nexus3.onap.org:10001/onap/org.onap.dcaegen2.deployments.tls-init-container:2.1.0
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: TLS_SERVER
+          value: "true"
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        resources: {}
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: tls-info
+      containers:
+      - image: nexus3.onap.org:10001/onap/org.onap.dcaegen2.collectors.ves.vescollector:1.11.0
+        imagePullPolicy: IfNotPresent
+        name: dcae-ves-collector
+        env:
+        - name: DCAE_CA_CERTPATH
+          value: /opt/app/dcae-certificate/cacert.pem
+        - name: CONSUL_HOST
+          value: consul-server.onap
+        - name: CONFIG_BINDING_SERVICE
+          value: config-binding-service
+        - name: CBS_CONFIG_URL
+          value: https://config-binding-service:10443/service_component_all/dcae-ves-collector
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        - name: CBS_CLIENT_CONFIG_PATH
+          value: "/app-config-input/application_config.yaml"
+        - name: LOG4J_FORMAT_MSG_NO_LOOKUPS
+          value: "true"
+        ports:
+        - containerPort: 8443
+          name: http
+        resources: {}
+        volumeMounts:
+        - mountPath: /app-config
+          name: app-config
+        - mountPath: /app-config-input
+          name: app-config-input
+        - mountPath: /opt/app/VESCollector/logs
+          name: logs
+        - mountPath: /opt/app/dcae-certificate
+          name: tls-info
+      hostname: dcae-ves-collector
+      serviceAccountName: onap-dcae-ves-collector-read
+      volumes:
+      - configMap:
+          defaultMode: 420
+          name: onap-dcae-ves-collector-application-config-configmap
+        name: app-config-input
+      - emptyDir:
+          medium: Memory
+        name: app-config
+      - emptyDir: {}
+        name: logs
+      - emptyDir: {}
+        name: tls-info
+      - name: dbc-response-cache
+        emptyDir: {}
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

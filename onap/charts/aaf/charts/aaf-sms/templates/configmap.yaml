@@ -1,0 +1,185 @@
+# Source: onap/charts/aaf/charts/aaf-sms/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-aaf-sms
+  namespace: onap
+  labels:
+    app: aaf-sms
+    chart: aaf-sms-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  smsconfig.json: |
+    {"cafile":"/opt/app/osaaf/local/aaf_root_ca.cer","password":"c2VjcmV0bWFuYWdlbWVudHNlcnZpY2VzZWNyZXRwYXNzd29yZA==","servercert":"/opt/app/osaaf/local/org.onap.aaf-sms.crt","serverkey":"/opt/app/osaaf/local/org.onap.aaf-sms.key","smsdbaddress":"http://aaf-sms-db:8200"}
+---
+# Source: onap/charts/aaf/charts/aaf-sms/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-aaf-sms-preload
+  namespace: onap
+  labels:
+    app: aaf-sms-preload
+    chart: aaf-sms-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  has.json: |
+    {
+        "domain": {
+            "name": "has",
+            "secrets": [
+                {
+                    "name": "aai",
+                    "values": {
+                        "username": "${AAI_USER}",
+                        "password": "${AAI_PASS}"
+                    }
+                },
+                {
+                    "name": "conductor_api",
+                    "values": {
+                        "username": "${CONDUCTOR_USER}",
+                        "password": "${CONDUCTOR_PASS}"
+                    }
+                },
+                {
+                    "name": "sdnc",
+                    "values": {
+                        "username": "${SDNC_USER}",
+                        "password": "${SDNC_PASS}"
+                    }
+                },
+                {
+                    "name": "music_api",
+                    "values": {
+                        "aafuser": "${MUSIC_USER}",
+                        "aafpass": "${MUSIC_PASS}",
+                        "aafns": "conductor"
+                    }
+                },
+                {
+                    "name": "aaf_api",
+                    "values": {
+                        "username": "${AAF_USER}",
+                        "password": "${AAF_PASS}",
+                        "aaf_conductor_user": "oof@oof.onap.org"
+                    }
+                },
+                {
+                    "name": "sdc",
+                    "values": {
+                        "username": "${SDC_USER}",
+                        "password": "${SDC_PASS}"
+                    }
+                }
+            ]
+        }
+    }
+  osdf.json: |
+    {
+        "domain": {
+            "name": "osdf",
+            "secrets": [
+                {
+                    "name": "so",
+                    "values": {
+                        "UserName": "${SO_USER}",
+                        "Password": "${SO_PASS}"
+                    }
+                },
+                {
+                    "name": "conductor",
+                    "values": {
+                        "UserName": "${CONDUCTOR_USER}",
+                        "Password": "${CONDUCTOR_PASS}"
+                    }
+                },
+                {
+                    "name": "policyPlatform",
+                    "values": {
+                        "UserName": "${POLICY_PLAT_USER}",
+                        "Password": "${POLICY_PLAT_PASS}"
+                    }
+                },
+                {
+                    "name": "policyClient",
+                    "values": {
+                        "UserName": "${POLICY_CLI_USER}",
+                        "Password": "${POLICY_CLI_PASS}"
+                    }
+                },
+                {
+                    "name": "dmaap",
+                    "values": {
+                        "UserName": "NA",
+                        "Password": "NA"
+                    }
+                },
+                {
+                    "name": "sdc",
+                    "values": {
+                        "UserName": "NA",
+                        "Password": "NA"
+                    }
+                },
+                {
+                    "name": "osdfPlacement",
+                    "values": {
+                        "UserName": "${OSDF_PLACEMENT_USER}",
+                        "Password": "${OSDF_PLACEMENT_PASS}"
+                    }
+                },
+                {
+                    "name": "osdfPlacementSO",
+                    "values": {
+                        "UserName": "${OSDF_PLACEMENT_SO_USER}",
+                        "Password": "${OSDF_PLACEMENT_SO_PASS}"
+                    }
+                },
+                {
+                    "name": "osdfPlacementVFC",
+                    "values": {
+                        "UserName": "${OSDF_PLACEMENT_VFC_USER}",
+                        "Password": "${OSDF_PLACEMENT_VFC_PASS}"
+                    }
+                },
+                {
+                    "name": "osdfCMScheduler",
+                    "values": {
+                        "UserName": "${OSDF_CM_SCHEDULER_USER}",
+                        "Password": "${OSDF_CM_SCHEDULER_PASS}"
+                    }
+                },
+                {
+                    "name": "configDb",
+                    "values": {
+                        "UserName": "${CONFIG_DB_USER}",
+                        "Password": "${CONFIG_DB_PASS}"
+                    }
+                },
+                {
+                    "name": "pciHMS",
+                    "values": {
+                        "UserName": "",
+                        "Password": ""
+                    }
+                },
+                {
+                    "name": "osdfPCIOpt",
+                    "values": {
+                        "UserName": "${OSDF_PCI_OPT_USER}",
+                        "Password": "${OSDF_PCI_OPT_PASS}"
+                    }
+                },
+                {
+                    "name": "osdfOptEngine",
+                    "values": {
+                        "UserName": "${OSDF_OPT_ENGINE_USER}",
+                        "Password": "${OSDF_OPT_ENGINE_PASS}"
+                    }
+                }
+            ]
+        }
+    }

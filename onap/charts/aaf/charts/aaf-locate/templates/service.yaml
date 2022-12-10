@@ -1,0 +1,23 @@
+# Source: onap/charts/aaf/charts/aaf-locate/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: aaf-locate
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: aaf-locate
+    helm.sh/chart: aaf-locate-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8095
+    targetPort: api
+    protocol: TCP
+    name: api
+  ipFamilyPolicy: PreferDualStack
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: aaf-locate
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

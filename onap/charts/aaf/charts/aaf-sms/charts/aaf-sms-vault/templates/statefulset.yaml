@@ -1,0 +1,96 @@
+# Source: onap/charts/aaf/charts/aaf-sms/charts/aaf-sms-vault/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: onap-aaf-sms-vault
+  namespace: onap
+  labels:
+    app: aaf-sms-vault
+    chart: aaf-sms-vault-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aaf-sms-vault
+  serviceName: aaf-sms-db
+  template:
+    metadata:
+      labels:
+        app: aaf-sms-vault
+        release: onap
+    spec:
+      initContainers:
+        - name: fix-permission
+          command:
+            - /bin/sh
+          args:
+            - -c
+            - |
+              chmod -R 775 /consul/data
+              chown -R 100:1000 /consul/data
+          image: docker.io/busybox:1.34.1
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /consul/data
+              name: onap-aaf-sms-vault-data
+      containers:
+        - image: docker.io/library/vault:1.3.3
+          name: aaf-sms-vault
+          imagePullPolicy: IfNotPresent
+          args: ["server"]
+          ports:
+            - containerPort: 8200
+          volumeMounts:
+            - mountPath: /vault/config/config.json
+              name: onap-aaf-sms-vault-vault
+              subPath: config.json
+            - mountPath: /etc/localtime
+              name: localtime
+              readOnly: true
+          resources: {}
+        - image: docker.io/library/consul:1.7.1
+          name: aaf-sms-vault-backend
+          imagePullPolicy: IfNotPresent
+          args: ["agent", "-server", "-bind", "0.0.0.0", "-bootstrap-expect=1", "-config-file", "/consul/config/config.json"]
+          ports:
+            - name: http
+              containerPort: 8500
+          volumeMounts:
+            - mountPath: /consul/data
+              name: onap-aaf-sms-vault-data
+            - mountPath: /consul/config/config.json
+              name: onap-aaf-sms-vault-consulconfiguration
+              subPath: config.json
+            - mountPath: /etc/localtime
+              name: localtime
+              readOnly: true
+          resources: {}
+      volumes:
+        - name: onap-aaf-sms-vault-consulconfiguration
+          configMap:
+            name: onap-aaf-sms-vault-consul
+        - name: onap-aaf-sms-vault-vault
+          configMap:
+            name: onap-aaf-sms-vault-vault
+        - name: localtime
+          hostPath:
+            path: /etc/localtime
+      imagePullSecrets:
+        - name: "onap-docker-registry-key"
+  volumeClaimTemplates:
+    - metadata:
+        name: onap-aaf-sms-vault-data
+        labels:
+          name: onap-aaf-sms-vault
+          chart: "aaf-sms-vault-10.0.0"
+          release: "onap"
+          heritage: "Helm"
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        storageClassName: onap-aaf-sms-vault-data
+        resources:
+          requests:
+            storage: "2Gi"

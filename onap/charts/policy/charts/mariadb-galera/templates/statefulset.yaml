@@ -1,0 +1,272 @@
+# Source: onap/charts/policy/charts/mariadb-galera/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: onap-policy-mariadb
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: policy-mariadb
+    helm.sh/chart: mariadb-galera-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: policy-mariadb
+      app.kubernetes.io/instance: onap
+  serviceName: policy-mariadb-headless
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        traffic.sidecar.istio.io/excludeInboundPorts: "4568"
+        traffic.sidecar.istio.io/includeInboundPorts: '*'
+      labels:
+        app.kubernetes.io/name: policy-mariadb
+        helm.sh/chart: mariadb-galera-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+      name: policy-mariadb
+    spec:
+      securityContext:
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      initContainers:
+        # we shouldn't need this but for unknown reason, it's fsGroup is not
+        # applied
+        - name: fix-permission
+          command:
+            - /bin/sh
+          args:
+            - -c
+            - |
+              chown -R 10001:10001 /data
+              chown -R 10001:10001 /bootstrap/
+              chown -R 10001:10001 /tmp/
+              cp /config/my.cnf /actual/my.cnf
+              chown -R 10001:10001 /actual
+          image: docker.io/busybox:1.34.1
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: previous-boot
+              mountPath: /bootstrap
+            - name: mariadb-tmp-folder
+              mountPath: /tmp
+            - name: onap-policy-mariadb
+              mountPath: /data
+            - name: mariadb-galera-starting-config
+              mountPath: /config/my.cnf
+              subPath: my.cnf
+            - name: mariadb-galera-actual-config
+              mountPath: /actual
+      containers:
+        - name: policy-mariadb
+          image: docker.io/bitnami/mariadb-galera:10.5.8
+          imagePullPolicy: "IfNotPresent"
+          command:
+            - bash
+            - -ec
+            - |
+              exec /opt/bitnami/scripts/mariadb-galera/entrypoint.sh /opt/bitnami/scripts/mariadb-galera/run.sh
+          env:
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BITNAMI_DEBUG
+              value: "true"
+            - name: MARIADB_INIT_SLEEP_TIME
+              value: "5"
+            - name: MARIADB_GALERA_CLUSTER_NAME
+              value: "galera"
+            - name: MARIADB_GALERA_CLUSTER_ADDRESS
+              value: "gcomm://policy-mariadb-headless.onap.svc.cluster.local"
+            # Bitnami init script don't behave well in dual stack env.
+            # set it here as long as https://github.com/bitnami/charts/issues/4077 is not solved.
+            - name: MARIADB_GALERA_NODE_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: MARIADB_ROOT_USER
+              value: "root"
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-db-root-password
+                  key: password
+            - name: MARIADB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-db-secret
+                  key: login
+            - name: MARIADB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-db-secret
+                  key: password
+            - name: MARIADB_DATABASE
+              value: "policyadmin"
+            - name: MARIADB_GALERA_MARIABACKUP_USER
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-mariadb-db-backup-credentials
+                  key: login
+            - name: MARIADB_GALERA_MARIABACKUP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-mariadb-db-backup-credentials
+                  key: password
+          ports:
+            - containerPort: 3306
+              name: tcp-mysql
+            - containerPort: 4567
+              name: tcp-galera
+            - containerPort: 4568
+              name: tcp-ist
+            - containerPort: 4444
+              name: tcp-sst
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - |
+                  exec mysqladmin status -u$MARIADB_ROOT_USER -p$MARIADB_ROOT_PASSWORD
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            timeoutSeconds: 180
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - |
+                  exec mysqladmin status -u$MARIADB_ROOT_USER -p$MARIADB_ROOT_PASSWORD
+            initialDelaySeconds: 1
+            periodSeconds: 10
+            timeoutSeconds: 180
+            successThreshold: 1
+            failureThreshold: 3
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - |
+                  exec mysqladmin status -u$MARIADB_ROOT_USER -p$MARIADB_ROOT_PASSWORD
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 180
+            successThreshold: 1
+            failureThreshold: 90
+          resources: {}
+          volumeMounts:
+            - name: previous-boot
+              mountPath: /opt/bitnami/mariadb/.bootstrap
+            - name: onap-policy-mariadb
+              mountPath: /bitnami/mariadb
+            - name: mariadb-tmp-folder
+              mountPath: /opt/bitnami/mariadb/tmp
+            - name: mariadb-galera-actual-config
+              mountPath: /opt/bitnami/mariadb/conf
+        - name: policy-mariadb-metrics
+          image: docker.io/bitnami/mysqld-exporter:0.12.1-debian-10-r264
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: MARIADB_METRICS_EXTRA_FLAGS
+              value: ""
+            - name: MARIADB_ROOT_USER
+              value: "root"
+            - name: MARIADB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: onap-policy-db-root-password
+                  key: password
+          command:
+            - sh
+            - -c
+            - |
+              DATA_SOURCE_NAME="$MARIADB_ROOT_USER:$MARIADB_ROOT_PASSWORD@(localhost:3306)/" /bin/mysqld_exporter $MARIADB_METRICS_EXTRA_FLAGS
+          ports:
+            - name: tcp-metrics
+              containerPort: 9104
+          livenessProbe:
+            httpGet:
+              path: /metrics
+              port: tcp-metrics
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /metrics
+              port: tcp-metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            successThreshold: 1
+            failureThreshold: 3
+          securityContext:
+            readOnlyRootFilesystem: true
+            privileged: false
+            allowPrivilegeEscalation: false
+          resources:
+            limits:
+              cpu: 0.5
+              memory: 256Mi
+            requests:
+              cpu: 0.5
+              memory: 256Mi
+      imagePullSecrets:
+        - name: onap-docker-registry-key
+      serviceAccountName: onap-policy-mariadb-read
+      affinity:
+        podAffinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: policy-mariadb
+                    app.kubernetes.io/instance: onap
+                namespaces:
+                  - onap
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+      volumes:
+        - name: previous-boot
+          emptyDir: {}
+        - name: mariadb-tmp-folder
+          emptyDir: {}
+        - name: mariadb-galera-actual-config
+          emptyDir: {}
+        - name: mariadb-galera-starting-config
+          configMap:
+            name: onap-policy-mariadb-configuration
+  volumeClaimTemplates:
+    - metadata:
+        name: onap-policy-mariadb
+        namespace: onap
+        labels:
+          app.kubernetes.io/name: policy-mariadb
+          helm.sh/chart: mariadb-galera-10.0.0
+          app.kubernetes.io/instance: onap
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        storageClassName: onap-policy-mariadb-data
+        resources:
+          requests:
+            storage: 3Gi

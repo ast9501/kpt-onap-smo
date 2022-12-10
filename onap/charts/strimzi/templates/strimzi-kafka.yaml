@@ -1,0 +1,84 @@
+# Source: onap/charts/strimzi/templates/strimzi-kafka.yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: onap-strimzi
+  namespace: onap
+  labels:
+    app: strimzi
+    chart: strimzi-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  kafka:
+    version: 3.0.0
+    replicas: 2
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+        authentication:
+          type: scram-sha-512
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+        authentication:
+          type: tls
+      - name: external
+        port: 9094
+        type: nodeport
+        tls: true
+        authentication:
+          type: tls
+        configuration:
+          bootstrap:
+            nodePort: 30491
+          brokers:
+            - broker: 0
+              nodePort: 30492
+            - broker: 1
+              nodePort: 30493
+    authorization:
+      type: simple
+      superUsers:
+        - strimzi-kafka-admin
+    template:
+      pod:
+        securityContext:
+          runAsUser: 0
+          fsGroup: 0
+    config:
+      default.replication.factor: 2
+      min.insync.replicas: 2
+      offsets.topic.replication.factor: 2
+      transaction.state.log.replication.factor: 2
+      transaction.state.log.min.isr: 2
+      log.message.format.version: "3.0"
+      inter.broker.protocol.version: "3.0"
+    storage:
+      type: jbod
+      volumes:
+        - id: 0
+          type: persistent-claim
+          size: 2Gi
+          deleteClaim: true
+          class: onap-strimzi-kafka
+  zookeeper:
+    template:
+      pod:
+        securityContext:
+          runAsUser: 0
+          fsGroup: 0
+    replicas: 2
+    config:
+      ssl.hostnameVerification: false
+    storage:
+      type: persistent-claim
+      size: 2Gi
+      deleteClaim: true
+      class: onap-strimzi-zk
+  entityOperator:
+    topicOperator: {}
+    userOperator: {}

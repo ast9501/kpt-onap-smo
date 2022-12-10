@@ -1,0 +1,21 @@
+# Source: onap/charts/aaf/charts/aaf-sms/templates/pv.yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: onap-aaf-sms
+  namespace: onap
+  labels:
+    app: aaf-sms
+    chart: "aaf-sms-10.0.0"
+    release: onap
+    heritage: "Helm"
+    name: onap-aaf-sms
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "onap-aaf-sms-data"
+  hostPath:
+    path: /dockerdata-nfs/deployment-1670599359/onap/sms/auth

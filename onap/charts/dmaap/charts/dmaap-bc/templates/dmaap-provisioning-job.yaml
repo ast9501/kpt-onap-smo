@@ -1,0 +1,91 @@
+# Source: onap/charts/dmaap/charts/dmaap-bc/templates/dmaap-provisioning-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: onap-dmaap-bc-dmaap-provisioning
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: dmaap-bc
+    helm.sh/chart: dmaap-bc-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  backoffLimit: 20
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dmaap-bc
+        helm.sh/chart: dmaap-bc-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+      name: dmaap-bc
+    spec:
+      restartPolicy: Never
+      initContainers:
+      - name: dmaap-bc-init-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - dmaap-bc
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+      containers:
+      - name: dmaap-provisioning-job
+        image: nexus3.onap.org:10001/onap/dmaap/dbc-client:1.0.9
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: DELAY
+          value: "0"
+        - name: REQUESTID
+          value: "dmaap-bc-dmaap-provisioning"
+        volumeMounts:
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+          # NOTE: on the following several configMaps, careful to include / at end
+          #       since there may be more than one file in each mountPath
+          # NOTE: the basename of the subdirectory of mountPath is important - it matches the DBCL API URI
+        - name: onap-dmaap-bc-dbc-dmaap
+          mountPath: /opt/app/config/dmaap/
+        - name: onap-dmaap-bc-dbc-dcaelocations
+          mountPath: /opt/app/config/dcaeLocations/
+        - name: onap-dmaap-bc-dr-nodes
+          mountPath: /opt/app/config/dr_nodes/
+        - name: onap-dmaap-bc-feeds
+          mountPath: /opt/app/config/feeds/
+        - name: onap-dmaap-bc-mr-clusters
+          mountPath: /opt/app/config/mr_clusters/
+        - name: onap-dmaap-bc-topics
+          mountPath: /opt/app/config/topics/
+        resources: {}
+      volumes:
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: onap-dmaap-bc-dbc-dmaap
+        configMap:
+          name: onap-dmaap-bc-dbc-dmaap
+      - name: onap-dmaap-bc-dbc-dcaelocations
+        configMap:
+          name: onap-dmaap-bc-dbc-dcaelocations
+      - name: onap-dmaap-bc-dr-nodes
+        configMap:
+          name: onap-dmaap-bc-dr-nodes
+      - name: onap-dmaap-bc-feeds
+        configMap:
+          name: onap-dmaap-bc-feeds
+      - name: onap-dmaap-bc-mr-clusters
+        configMap:
+          name: onap-dmaap-bc-mr-clusters
+      - name: onap-dmaap-bc-topics
+        configMap:
+          name: onap-dmaap-bc-topics
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

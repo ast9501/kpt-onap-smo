@@ -1,0 +1,52 @@
+# Source: onap/charts/a1policymanagement/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: a1policymanagement
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: a1policymanagement
+    helm.sh/chart: a1policymanagement-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8433
+    targetPort: api
+    protocol: TCP
+    name: https-api
+  - port: 8081
+    targetPort: api-plain
+    protocol: TCP
+    name: http-api
+  ipFamilyPolicy: PreferDualStack
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: a1policymanagement
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None
+---
+# Source: onap/charts/a1policymanagement/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: a1policymanagement-external
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: a1policymanagement
+    helm.sh/chart: a1policymanagement-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8433
+    targetPort: api
+    protocol: TCP
+    name: https-api
+    nodePort: 30294
+  ipFamilyPolicy: PreferDualStack
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: a1policymanagement
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

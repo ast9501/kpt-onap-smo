@@ -1,0 +1,21 @@
+# Source: onap/charts/sdnc/charts/dgbuilder/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-sdnc-dgbuilder-config
+  namespace: onap
+  labels:
+    app: sdnc-dgbuilder
+    chart: dgbuilder-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  customSettings.js: "/* Copyright © 2017 AT&T, Amdocs, Bell Canada\n*\n* Licensed under the Apache License, Version 2.0 (the \"License\");\n* you may not use this file except in compliance with the License.\n* You may obtain a copy of the License at\n*\n*       http://www.apache.org/licenses/LICENSE-2.0\n*\n* Unless required by applicable law or agreed to in writing, software\n* distributed under the License is distributed on an \"AS IS\" BASIS,\n* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n* See the License for the specific language governing permissions and\n* limitations under the License.\n*/\n\nmodule.exports={\n    \"name\": \"Release sdnc1.0\",\n    \"emailAddress\": \"dguser@onap.org\",\n    \"uiPort\": 3100,\n    \"mqttReconnectTime\": 15000,\n    \"serialReconnectTime\": 15000,\n    \"debugMaxLength\": 1000,\n    \"htmlPath\": \"releases/sdnc1.0/html/\",\n    \"xmlPath\": \"releases/sdnc1.0/xml/\",\n    \"flowFile\": \"releases/sdnc1.0/flows/flows.json\",\n    \"sharedDir\": \"releases/sdnc1.0/flows/shared\",\n    \"userDir\": \"releases/sdnc1.0\",\n    \"httpAuth\": {\n        \"user\": \"${HTTP_USER}\",\n        \"pass\": \"${HTTP_PASSWORD}\"\n    },\n    \"dbHost\": \"mariadb-galera.onap\",\n    \"dbPort\": \"3306\",\n    \"dbName\": \"sdnctl\",\n    \"dbUser\": \"${DB_USER}\",\n    \"dbPassword\": \"${DB_PASSWORD}\",\n    \"gitLocalRepository\": \"\",\n    \"restConfUrl\": \"http://localhost:8181/restconf/operations/SLI-API:execute-graph\",\n    \"restConfUser\": \"${REST_CONF_USER}\",\n    \"restConfPassword\": \"${REST_CONF_PASSWORD}\",\n    \"formatXML\": \"Y\",\n    \"formatJSON\": \"Y\",\n    \"httpRoot\": \"/\",\n    \"disableEditor\": false,\n    \"httpAdminRoot\": \"/\",\n    \"httpAdminAuth\": {\n        \"user\": \"${HTTP_ADMIN_USER}\",\n        \"pass\": \"${HTTP_ADMIN_PASSWORD}\"\n    },\n    \"httpNodeRoot\": \"/\",\n    \"httpNodeAuth\": {\n        \"user\": \"${HTTP_NODE_USER}\",\n        \"pass\": \"${HTTP_NODE_PASSWORD}\"\n    },\n    \"uiHost\": \"0.0.0.0\",\n    \"version\": \"0.9.1\",\n    \n    \"enableHttps\" : true,\n    \n    \"performGitPull\": \"N\"\n}\n"
+  svclogic.properties: |2
+
+
+    org.onap.ccsdk.sli.dbtype=jdbc
+    org.onap.ccsdk.sli.jdbc.url=jdbc:mysql://mariadb-galera.onap:3306/sdnctl
+    org.onap.ccsdk.sli.jdbc.database=sdnctl
+    org.onap.ccsdk.sli.jdbc.user=${DB_USER}
+    org.onap.ccsdk.sli.jdbc.password=${DB_PASSWORD}

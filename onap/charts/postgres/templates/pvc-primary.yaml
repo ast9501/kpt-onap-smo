@@ -1,0 +1,19 @@
+# Source: onap/charts/postgres/templates/pvc-primary.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: onap-postgres-primary
+  namespace: onap
+  labels:
+    app: onap-postgres
+    chart: "postgres-10.0.0"
+    release: "onap"
+    heritage: "Helm"
+    name: onap-postgres
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: "onap-postgres-primary"

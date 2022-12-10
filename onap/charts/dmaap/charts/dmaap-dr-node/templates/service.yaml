@@ -1,0 +1,56 @@
+# Source: onap/charts/dmaap/charts/dmaap-dr-node/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  name: dmaap-dr-node
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: dmaap-dr-node
+    helm.sh/chart: dmaap-dr-node-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8443
+    targetPort: api
+    protocol: TCP
+    name: https-api
+  - port: 8080
+    targetPort: api-plain
+    protocol: TCP
+    name: http-api
+  ipFamilyPolicy: PreferDualStack
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dmaap-dr-node
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None
+---
+# Source: onap/charts/dmaap/charts/dmaap-dr-node/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  name: dmaap-dr-node-external
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: dmaap-dr-node
+    helm.sh/chart: dmaap-dr-node-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8443
+    targetPort: api
+    protocol: TCP
+    name: https-api
+    nodePort: 30494
+  ipFamilyPolicy: PreferDualStack
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: dmaap-dr-node
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

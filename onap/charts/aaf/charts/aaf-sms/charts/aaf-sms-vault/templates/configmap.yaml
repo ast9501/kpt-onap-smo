@@ -1,0 +1,29 @@
+# Source: onap/charts/aaf/charts/aaf-sms/charts/aaf-sms-vault/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-aaf-sms-vault-vault
+  namespace: onap
+  labels:
+    app: aaf-sms-vault
+    chart: aaf-sms-vault-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  config.json: |
+    {"disable_mlock":true,"listener":{"tcp":{"address":"[::]:8200","tls_disable":true}},"storage":{"consul":{"address":"localhost:8500","path":"smsvault"}}}
+---
+# Source: onap/charts/aaf/charts/aaf-sms/charts/aaf-sms-vault/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-aaf-sms-vault-consul
+  namespace: onap
+  labels:
+    app: aaf-sms-vault
+    chart: aaf-sms-vault-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  config.json: |
+    {"data_dir":"/consul/data","log_level":"INFO","ports":{"http":8500,"https":-1},"server":true}

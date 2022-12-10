@@ -1,0 +1,23 @@
+# Source: onap/charts/sdnc/charts/elasticsearch/templates/coordinating-svc-https.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: sdnrdb
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: sdnrdb
+    helm.sh/chart: elasticsearch-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 9200
+    targetPort: elasticsearch
+    protocol: TCP
+    name: elasticsearch
+  ipFamilyPolicy: PreferDualStack
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: sdnrdb
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

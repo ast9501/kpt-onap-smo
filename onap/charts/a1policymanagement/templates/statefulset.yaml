@@ -1,0 +1,251 @@
+# Source: onap/charts/a1policymanagement/templates/statefulset.yaml
+kind: StatefulSet
+apiVersion: apps/v1
+metadata:
+  name: onap-a1policymanagement
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: a1policymanagement
+    helm.sh/chart: a1policymanagement-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  serviceName: a1policymanagement
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: a1policymanagement
+      app.kubernetes.io/instance: onap
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: a1policymanagement
+        helm.sh/chart: a1policymanagement-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"
+      initContainers:
+      - name: a1p-cert-initializer-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-locate
+        - --container-name
+        - aaf-cm
+        - --container-name
+        - aaf-service
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: a1policymanagement-aaf-config
+        image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-a1policymanagement-aaf-config
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAPall.jks.b64
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAP.p12.b64
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+          subPath: retrieval_check.sh
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/aaf-add-config.sh
+          subPath: aaf-add-config.sh
+        command:
+        - sh
+        - -c
+        - |
+          /opt/app/aaf_config/bin/agent.sh
+          . /opt/app/aaf_config/bin/retrieval_check.sh
+          /opt/app/aaf_config/bin/aaf-add-config.sh
+        env:
+        - name: APP_FQI
+          value: "a1p@a1p.onap.org"
+        - name: aaf_locate_url
+          value: "https://aaf-locate.onap:8095"
+        - name: aaf_locator_container_ns
+          value: "onap"
+        - name: aaf_locator_container
+          value: "oom"
+        - name: aaf_locator_fqdn
+          value: "a1p"
+        - name: aaf_locator_app_ns
+          value: "org.osaaf.aaf"
+        - name: DEPLOY_FQI
+          valueFrom:
+            secretKeyRef:
+              name: onap-a1p-cert-initializer-deployer-creds
+              key: login
+        - name: DEPLOY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-a1p-cert-initializer-deployer-creds
+              key: password
+              #Note: want to put this on Nodes, eventually
+        - name: cadi_longitude
+          value: "0.0"
+        - name: cadi_latitude
+          value: "0.0"
+          #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+        - name: aaf_locator_public_fqdn
+          value: "a1p.onap.org"
+      - name: a1policymanagement-bootstrap-config
+        image: docker.io/dibi/envsubst:1
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        args:
+        - -c
+        - |
+          export $(cat /opt/app/osaaf/local/mycreds.prop\
+            | xargs -0)
+          cd /config-input
+          for PFILE in `ls -1`
+          do
+            envsubst <${PFILE} >/config/${PFILE}
+            chmod o+w /config/${PFILE}
+          done
+          cat /config/application.yaml
+        env:
+        - name: A1CONTROLLER_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-a1policymanagement-controller-secret
+              key: login
+        - name: A1CONTROLLER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-a1policymanagement-controller-secret
+              key: password
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-a1policymanagement-aaf-config
+        - mountPath: /config-input
+          name: onap-a1policymanagement-policy-conf-input
+        - mountPath: /config
+          name: config
+      containers:
+      - name: a1policymanagement-update-config
+        image: docker.io/dibi/envsubst:1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsGroup: 999
+          runAsUser: 1000
+          runAsNonRoot: true
+        command:
+        - sh
+        args:
+        - /tmp/scripts/daemon.sh
+        env:
+        - name: A1CONTROLLER_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-a1policymanagement-controller-secret
+              key: login
+        - name: A1CONTROLLER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-a1policymanagement-controller-secret
+              key: password
+        volumeMounts:
+        - mountPath: /tmp/scripts
+          name: onap-a1policymanagement-envsubst-scripts
+        - mountPath: /config-input
+          name: onap-a1policymanagement-policy-conf-input
+        - mountPath: /config
+          name: config
+      - name: a1policymanagement
+        image: nexus3.onap.org:10001/onap/ccsdk-oran-a1policymanagementservice:1.3.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8433
+          name: api
+        - containerPort: 8081
+          name: api-plain
+        readinessProbe:
+          tcpSocket:
+            port: api
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /status
+            port: api
+            scheme: HTTPS
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-a1policymanagement-aaf-config
+        - name: config
+          mountPath: /opt/app/policy-agent/data/application_configuration.json
+          subPath: application_configuration.json
+        - name: config
+          mountPath: /opt/app/policy-agent/config/application.yaml
+          subPath: application.yaml
+        - name: onap-a1policymanagement
+          mountPath: "/var/policy-management-service/database"
+        resources: {}
+      serviceAccountName: onap-a1policymanagement-read
+      volumes:
+      - name: onap-a1policymanagement-aaf-config
+        emptyDir:
+          medium: Memory
+      - name: aaf-agent-certs
+        configMap:
+          name: onap-cert-wrapper-certs
+          defaultMode: 0700
+      - name: aaf-add-config
+        configMap:
+          name: onap-a1p-cert-initializer-add-config
+          defaultMode: 0700
+      - name: onap-a1policymanagement-policy-conf-input
+        configMap:
+          name: onap-a1policymanagement-policy-conf
+      - name: onap-a1policymanagement-envsubst-scripts
+        configMap:
+          name: onap-a1policymanagement-envsubst-scripts
+          defaultMode: 0555
+      - name: config
+        emptyDir:
+          medium: Memory
+  volumeClaimTemplates:
+  - metadata:
+      name: onap-a1policymanagement
+      namespace: onap
+      labels:
+        app.kubernetes.io/name: a1policymanagement
+        helm.sh/chart: a1policymanagement-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: onap-a1policymanagement-data
+      resources:
+        requests:
+          storage: 2Gi

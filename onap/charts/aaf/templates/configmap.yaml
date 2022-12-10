@@ -1,0 +1,167 @@
+# Source: onap/charts/aaf/templates/configmap.yaml
+# Copyright © 2020 Orange
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-aaf-log
+  namespace: onap
+  labels:
+    app: aaf
+    chart: aaf-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  org.osaaf.aaf.log4j.props: |-
+    #########
+    #  ============LICENSE_START====================================================
+    #  org.onap.aaf
+    #  ===========================================================================
+    #  Copyright (c) 2017 AT&T Intellectual Property. All rights reserved.
+    #  Copyright (c) 2020 Orange Intellectual Property. All rights reserved.
+    #  ===========================================================================
+    #  Licensed under the Apache License, Version 2.0 (the "License");
+    #  you may not use this file except in compliance with the License.
+    #  You may obtain a copy of the License at
+    #
+    #       http://www.apache.org/licenses/LICENSE-2.0
+    #
+    #  Unless required by applicable law or agreed to in writing, software
+    #  distributed under the License is distributed on an "AS IS" BASIS,
+    #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    #  See the License for the specific language governing permissions and
+    #  limitations under the License.
+    #  ============LICENSE_END====================================================
+    #
+
+    log4j.appender.INIT=org.apache.log4j.DailyRollingFileAppender
+    log4j.appender.INIT.File=${LOG4J_FILENAME_init}
+    log4j.appender.INIT.DatePattern='.'yyyy-MM-dd
+    log4j.appender.INIT.layout=org.apache.log4j.PatternLayout
+    log4j.appender.INIT.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSSZ} %m %n
+
+    log4j.appender.SRVR=org.apache.log4j.DailyRollingFileAppender
+    log4j.appender.SRVR.File=${LOG4J_FILENAME_service}
+    log4j.appender.SRVR.DatePattern='.'yyyy-MM-dd
+    log4j.appender.SRVR.layout=org.apache.log4j.PatternLayout
+    log4j.appender.SRVR.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSSZ} %p [%c] %m %n
+
+    log4j.appender.AUDIT=org.apache.log4j.DailyRollingFileAppender
+    log4j.appender.AUDIT.File=${LOG4J_FILENAME_audit}
+    log4j.appender.AUDIT.DatePattern='.'yyyy-MM-dd
+    log4j.appender.AUDIT.layout=org.apache.log4j.PatternLayout
+    log4j.appender.AUDIT.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss,SSSZ} %m %n
+
+    log4j.appender.stdout=org.apache.log4j.ConsoleAppender
+    log4j.appender.stdout.layout=org.apache.log4j.PatternLayout
+    log4j.appender.stdout.layout.ConversionPattern=%d %p [%c] %m %n
+
+    # General Apache libraries
+    log4j.rootLogger=WARN.SRVR
+    log4j.logger.org.apache=WARN,SRVR
+    log4j.logger.com.datastax=WARN,SRVR
+    log4j.logger.init=INFO,INIT,stdout
+    log4j.logger.service=${LOGGING_LEVEL},SRVR,stdout
+    log4j.logger.audit=INFO,AUDIT
+    # Additional configs, not caugth with Root Logger
+    log4j.logger.io.netty=INFO,SRVR
+    log4j.logger.org.eclipse=INFO,SRVR
+---
+# Source: onap/charts/aaf/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-aaf-identity
+  namespace: onap
+  labels:
+    app: aaf
+    chart: aaf-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  identities.dat: |2
+
+
+    iowna|Ima D. Owner|Ima|Owner|314-123-2000|ima.d.owner@people.osaaf.com|e|
+    mmanager|Mark D. Manager|Mark|Manager|314-123-1234|mark.d.manager@people.osaaf.com|e|iowna
+    bdevl|Robert D. Developer|Bob|Developer|314-123-1235|bob.d.developer@people.osaaf.com|e|mmanager
+    mmarket|Mary D. Marketer|Mary|Marketer|314-123-1236|mary.d.marketer@people.osaaf.com|e|mmanager
+    ccontra|Clarice D. Contractor|Clarice|Contractor|314-123-1237|clarice.d.contractor@people.osaaf.com|c|mmanager
+    iretired|Ira Lee M. Retired|Ira|Retired|314-123-1238|clarice.d.contractor@people.osaaf.com|n|mmanager
+
+    # Portal Identities
+    portal|ONAP Portal Application|PORTAL|ONAP Application|314-123-1234|portal@people.osaaf.com|a|aaf_admin
+    shi|ONAP SHI Portal Identity|shi|Portal Application|314-123-1234|shi@people.osaaf.com|a|aaf_admin
+    demo|PORTAL DEMO|demo|PORTAL|DEMO|314-123-1234|demo@people.osaaf.com|e|aaf_admin
+    jh0003|PORTAL ADMIN|jh|PORTAL ADMIN|314-123-1234|jh0003@people.osaaf.com|e|aaf_admin
+    cs0008|PORTAL DESIGNER|cs|PORTAL DESIGNER|314-123-1234|cs0008@people.osaaf.com|e|aaf_admin
+    jm0007|PORTAL TESTER|jm|PORTAL TESTER|314-123-1234|jm0007@people.osaaf.com|e|aaf_admin
+    op0001|PORTAL OPS|op|PORTAL OPS|314-123-1234|op0001@people.osaaf.com|e|aaf_admin
+    gv0001|GV PORTAL|gv|PORTAL|314-123-1234|gv0001@people.osaaf.com|e|aaf_admin
+    pm0001|PM PORTAL|pm|PORTAL|314-123-1234|pm0001@people.osaaf.com|e|aaf_admin
+    gs0001|GS PORTAL|gs|PORTAL|314-123-1234|gs0001@people.osaaf.com|e|aaf_admin
+    ps0001|PS PORTAL|ps|PORTAL|314-123-1234|ps0001@people.osaaf.com|e|aaf_admin
+
+    # AAF Defined Users
+    aaf_admin|AAF Administrator|Mr AAF|AAF Admin|314-123-1234|aaf_admin@people.osaaf.com|e|mmanager
+    deployer|Deployer|Deployer|Depoyer|314-123-1234|deployer@people.osaaf.com|e|aaf_admin
+
+    # Requested Users
+    portal_admin|Portal Admin|Portal|Admin|314-123-1234|portal_admin@people.osaaf.com|e|mmanager
+
+    # ONAP App IDs
+    a1p|A1 Policy Mangement|A1P|Application|314-123-1234|no_reply@people.osaaf.com|a|aaf_admin
+    aaf|AAF Application|AAF|Application|314-123-1234|no_reply@people.osaaf.com|a|aaf_admin
+    aaf-sms|AAF SMS Application|AAF SMS|Application|314-123-1234|no_reply@people.osaaf.com|a|aaf_admin
+    clamp|ONAP CLAMP Application|CLAMP|Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    aai|ONAP AAI Application|AAI|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    aai-resources|ONAP AAI Resources Application|AAI Resources|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    aai-schema-service|ONAP AAI Schema Service Application|AAI Schema Service|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    aai-traversal|ONAP AAI Traversal Application|AAI Resources|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    appc|ONAP APPC Application|APPC|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    appc-cdt|ONAP APPC CDT Application|APPC|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    cli|ONAP CLI Application|SDNC-CDS|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    dcae|ONAP DCAE Application|CLAMP|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    oof|ONAP OOF Application|OOF|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    so|ONAP SO Application|SO|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    sdc|ONAP SDC Application|SDC|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    sdnc|ONAP SDNC Application|SDNC|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    sdnc-cds|ONAP SDNC CDS Application|SDNC-CDS|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    vfc|ONAP VFC Application|VNC|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    policy|ONAP Policy Application|POLICY|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    pomba|ONAP Pomba Application|POMBA|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    holmes|ONAP Holmes Application|HOLMES|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    holmes-engine-mgmt|ONAP Holmes Engine Management Application|HOLMES-ENGINE|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    holmes-rule-mgmt|ONAP Holmes Rules Management Application|HOLMES-RULES|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    nbi|ONAP NBI Application|NBI|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    msb-eag|ONAP MSB EAG Application|MSB EAG|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    msb-iag|ONAP MSB IAG Application|MSB IAG|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    music|ONAP MUSIC Application|MUSIC|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    refrepo|ONAP REFREPO Application|REFREPO|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    uui|ONAP UUI Application|UUI|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    # VID Identities
+    vid|ONAP VID Application|VID|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    vid1|ONAP VID Application 1|VID 1|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    vid2|ONAP VID Application 2|VID 2|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    # DMAAP Identities
+    dmaap-bc|ONAP DMaap BC Application|DMaap BC|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    dmaap-bc-topic-mgr|ONAP DMaap BC Topic Manager|DMaap BC Topic Manager|DMaap BC|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    dmaap-bc-mm-prov|ONAP DMaap BC Provisioning Manager|DMaap BC Provision Manager|DMaap BC|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    dmaap-dr|ONAP DMaap DR|Prov|DMaap DR|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    dmaap-dr-prov|ONAP DMaap DR Prov|Prov|DMaap MR|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    dmaap-dr-node|ONAP DMaap DR Node|Node|DMaap MR|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    dmaap-mr|ONAP DMaap MR Application|DMaap MR|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    #deprecate these in El Alto
+    dmaapmr|ONAP DMaap MR Application|DMaap MR|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager
+    #dmaap.mr|ONAP DMaap MR Application|DMaap MR|ONAP Application|314-123-1234|no_reply@people.osaaf.com|a|mmanager

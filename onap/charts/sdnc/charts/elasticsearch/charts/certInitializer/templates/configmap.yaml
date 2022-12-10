@@ -1,0 +1,26 @@
+# Source: onap/charts/sdnc/charts/elasticsearch/charts/certInitializer/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-elasticsearch-cert-initializer-add-config
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: elasticsearch-cert-initializer
+    helm.sh/chart: certInitializer-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+data:
+  retrieval_check.sh: |
+    #!/bin/sh
+
+    echo "*** retrieving passwords for certificates"
+    export $(/opt/app/aaf_config/bin/agent.sh local showpass \
+      sdnc@sdnc.onap.org sdnc | grep '^c' | xargs -0)
+    if [ -z "$cadi_keystore_password_p12" ]
+    then
+      echo " /!\ certificates retrieval failed"
+      exit 1
+    fi
+    echo "*** password retrieval succeeded"
+  aaf-add-config.sh: |
+    cd /opt/app/osaaf/local; mkdir -p certs; keytool -exportcert -rfc -file certs/cacert.pem -keystore org.onap.sdnc.trust.jks -alias ca_local_0 -storepass $cadi_truststore_password; openssl pkcs12 -in org.onap.sdnc.p12 -out certs/cert.pem -passin pass:$cadi_keystore_password_p12 -passout pass:$cadi_keystore_password_p12; cp org.onap.sdnc.key certs/key.pem; chmod -R 755 certs;

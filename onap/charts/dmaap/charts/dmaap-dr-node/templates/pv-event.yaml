@@ -1,0 +1,21 @@
+# Source: onap/charts/dmaap/charts/dmaap-dr-node/templates/pv-event.yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: onap-dmaap-dr-node-event-logs-0
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: dmaap-dr-node
+    helm.sh/chart: dmaap-dr-node-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: event-logs
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "onap-dmaap-dr-node-event-logs"
+  hostPath:
+    path: /dockerdata-nfs/deployment-1670599359/onap/data-router/dr-node/event-logs-0

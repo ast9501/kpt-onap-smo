@@ -1,0 +1,132 @@
+# Source: onap/charts/aaf/charts/aaf-cass/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-aaf-cass
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: aaf-cass
+    helm.sh/chart: aaf-cass-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aaf-cass
+      app.kubernetes.io/instance: onap
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aaf-cass
+        helm.sh/chart: aaf-cass-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+      name: aaf-cass
+    spec:
+      initContainers:
+      - name: fix-permission
+        command:
+        - /bin/sh
+        args:
+        - -c
+        - |
+          echo "*** Move files from configmap to emptyDir"
+          cp -L /config-input-dats/* /config-dats/
+          echo "*** set righ user to the different folders"
+          chown -R 1000:1000 /config-dats
+          chown -R 1000:1000 /var/lib/cassandra
+          chown -R 1000:1000 /status
+        image: docker.io/busybox:1.34.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /var/lib/cassandra
+          name: aaf-cass-vol
+        - mountPath: /config-input-dats
+          name: config-cass-init-dats
+        - mountPath: /config-dats
+          name: config-cass-dats
+        - mountPath: /status
+          name: aaf-status
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 30m
+            memory: 100Mi
+      containers:
+      - name: aaf-cass
+        image: nexus3.onap.org:10001/onap/aaf/aaf_cass:2.1.23
+        imagePullPolicy: IfNotPresent
+        # installing with cmd "onap" will not only initialize the DB, but add ONAP bootstrap data as well
+        command: ["/bin/bash", "/opt/app/aaf/cass_init/cmd.sh", "onap"]
+        ports:
+        - containerPort: 7000
+          name: tcp-intra
+        - containerPort: 7001
+          name: tls
+        - containerPort: 9042
+          name: tcp-cql
+        - containerPort: 9160
+          name: tcp-thrift
+        env:
+        - name: CASSANDRA_CLUSTER_NAME
+          value: osaaf
+        - name: CASSANDRA_DC
+          value: dc1
+        - name: CQLSH
+          value: "/opt/cassandra/bin/cqlsh"
+        - name: HEAP_NEWSIZE
+          value: 512M
+        - name: MAX_HEAP_SIZE
+          value: 1024M
+        - name: MY_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: MY_POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: MY_POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        volumeMounts:
+        - mountPath: /var/lib/cassandra
+          name: aaf-cass-vol
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /opt/app/aaf/cass_init/dats
+          name: config-cass-dats
+        - mountPath: /opt/app/aaf/status
+          name: aaf-status
+        livenessProbe:
+          tcpSocket:
+            port: tcp-cql
+          initialDelaySeconds: 120
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: tcp-cql
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources: {}
+      volumes:
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: aaf-status
+        emptyDir: {}
+      - name: aaf-cass-vol
+        persistentVolumeClaim:
+          claimName: onap-aaf-cass
+      - name: config-cass-init-dats
+        configMap:
+          name: onap-aaf-cass-cass-init-dats
+      - name: config-cass-dats
+        emptyDir: {}
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

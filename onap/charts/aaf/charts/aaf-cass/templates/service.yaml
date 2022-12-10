@@ -1,0 +1,35 @@
+# Source: onap/charts/aaf/charts/aaf-cass/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: aaf-cass
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: aaf-cass
+    helm.sh/chart: aaf-cass-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 7000
+    targetPort: tcp-intra
+    protocol: TCP
+    name: tcp-intra
+  - port: 7001
+    targetPort: tls
+    protocol: TCP
+    name: tls
+  - port: 9042
+    targetPort: tcp-cql
+    protocol: TCP
+    name: tcp-cql
+  - port: 9160
+    targetPort: tcp-thrift
+    protocol: TCP
+    name: tcp-thrift
+  ipFamilyPolicy: PreferDualStack
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: aaf-cass
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

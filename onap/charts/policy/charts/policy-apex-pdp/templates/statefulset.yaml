@@ -1,0 +1,203 @@
+# Source: onap/charts/policy/charts/policy-apex-pdp/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: onap-policy-apex-pdp
+  namespace: onap
+  labels:
+    app: policy-apex-pdp
+    chart: policy-apex-pdp-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  serviceName: policy-apex-pdp
+  replicas: 1
+  selector:
+    matchLabels:
+      app: policy-apex-pdp
+  template:
+    metadata:
+      labels:
+        app: policy-apex-pdp
+        release: onap
+    spec:
+      initContainers:
+      - command:
+        - sh
+        args:
+        - -c
+        - "cd /config-input && for PFILE in `ls -1`; do envsubst <${PFILE} >/config/${PFILE}; done"
+        env:
+        - name: TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-apex-pdp-truststore-pass
+              key: password
+        - name: KEYSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-apex-pdp-keystore-pass
+              key: password
+        - name: RESTSERVER_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-apex-pdp-restserver-creds
+              key: login
+        - name: RESTSERVER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-apex-pdp-restserver-creds
+              key: password
+        volumeMounts:
+        - mountPath: /config-input
+          name: apexconfig-input
+        - mountPath: /config
+          name: apexconfig
+        image: docker.io/dibi/envsubst:1
+        imagePullPolicy: IfNotPresent
+        name: policy-apex-pdp-update-config
+      - name: policy-apex-pdp-cert-initializer-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-locate
+        - --container-name
+        - aaf-cm
+        - --container-name
+        - aaf-service
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: policy-apex-pdp-aaf-config
+        image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-policy-apex-pdp-aaf-config
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAPall.jks.b64
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAP.p12.b64
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+          subPath: retrieval_check.sh
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/aaf-add-config.sh
+          subPath: aaf-add-config.sh
+        command:
+        - sh
+        - -c
+        - |
+          /opt/app/aaf_config/bin/agent.sh
+          . /opt/app/aaf_config/bin/retrieval_check.sh
+          /opt/app/aaf_config/bin/aaf-add-config.sh
+        env:
+        - name: APP_FQI
+          value: "policy@policy.onap.org"
+        - name: aaf_locate_url
+          value: "https://aaf-locate.onap:8095"
+        - name: aaf_locator_container_ns
+          value: "onap"
+        - name: aaf_locator_container
+          value: "oom"
+        - name: aaf_locator_fqdn
+          value: "policy"
+        - name: aaf_locator_app_ns
+          value: "org.osaaf.aaf"
+        - name: DEPLOY_FQI
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-apex-pdp-cert-initializer-deployer-creds
+              key: login
+        - name: DEPLOY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-apex-pdp-cert-initializer-deployer-creds
+              key: password
+              #Note: want to put this on Nodes, eventually
+        - name: cadi_longitude
+          value: "0.0"
+        - name: cadi_latitude
+          value: "0.0"
+          #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+        - name: aaf_locator_public_fqdn
+          value: "policy.onap.org"
+      containers:
+      - name: policy-apex-pdp
+        image: nexus3.onap.org:10001/onap/policy-apex-pdp:2.7.3
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c"]
+        args: ["if [ -f /opt/app/osaaf/local/.ci ]; then . /opt/app/osaaf/local/.ci; fi;/opt/app/policy/apex-pdp/bin/apexOnapPf.sh -c /home/apexuser/config/OnapPfConfig.json"]
+        ports:
+        - containerPort: 6969
+        livenessProbe:
+          tcpSocket:
+            port: 6969
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 6969
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        env:
+        - name: REPLICAS
+          value: "1"
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-policy-apex-pdp-aaf-config
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /var/log/onap
+          name: policy-logs
+        - mountPath: /home/apexuser/config
+          name: apexconfig
+        resources: {}
+      serviceAccountName: onap-policy-apex-pdp-read
+      volumes:
+      - name: onap-policy-apex-pdp-aaf-config
+        emptyDir:
+          medium: Memory
+      - name: aaf-agent-certs
+        configMap:
+          name: onap-cert-wrapper-certs
+          defaultMode: 0700
+      - name: aaf-add-config
+        configMap:
+          name: onap-policy-apex-pdp-cert-initializer-add-config
+          defaultMode: 0700
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: policy-logs
+        emptyDir: {}
+      - name: apexconfig-input
+        configMap:
+          name: onap-policy-apex-pdp-configmap
+          defaultMode: 0755
+      - name: apexconfig
+        emptyDir:
+          medium: Memory
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

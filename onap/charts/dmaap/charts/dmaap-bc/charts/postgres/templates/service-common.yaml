@@ -1,0 +1,20 @@
+# Source: onap/charts/dmaap/charts/dmaap-bc/charts/postgres/templates/service-common.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: dbc-postgres
+  namespace: onap
+  labels:
+    app: dbc-pg
+    chart: postgres-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: tcp-postgres
+  selector:
+    app: dbc-pg
+    release: onap

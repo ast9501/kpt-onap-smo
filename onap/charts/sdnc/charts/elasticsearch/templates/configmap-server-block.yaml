@@ -1,0 +1,48 @@
+# Source: onap/charts/sdnc/charts/elasticsearch/templates/configmap-server-block.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-sdnrdb-nginx-server-block
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: sdnrdb
+    helm.sh/chart: elasticsearch-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+data:
+  server-block.conf: |2-
+
+    server {
+      listen 9200 ssl;
+      #server_name ;
+      # auth_basic "server auth";
+      # auth_basic_user_file /etc/nginx/passwords;
+      ssl_certificate /opt/app/osaaf/local/certs/cert.pem;
+      ssl_certificate_key /opt/app/osaaf/local/certs/key.pem;
+      location / {
+        # deny node shutdown api
+        if ($request_filename ~ "_shutdown") {
+          return 403;
+          break;
+        }
+
+        proxy_pass http://localhost:9000;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "Keep-Alive";
+        proxy_set_header Proxy-Connection "Keep-Alive";
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $http_host;
+        proxy_redirect off;
+      }
+
+      location = / {
+        proxy_pass http://localhost:9000;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "Keep-Alive";
+        proxy_set_header Proxy-Connection "Keep-Alive";
+        proxy_redirect off;
+        auth_basic "off";
+      }
+    }

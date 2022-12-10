@@ -1,0 +1,661 @@
+# Source: onap/charts/dmaap/charts/message-router/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-message-router-msgrtrapi-prop-configmap
+  namespace: onap
+  labels:
+    app: message-router
+    chart: message-router-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  MsgRtrApi.properties: |2
+
+    ##
+    ## Kafka Connection
+    ##
+    ##        Items below are passed through to Kafka's producer and consumer
+    ##        configurations (after removing "kafka.")
+    ##        if you want to change request.required.acks it can take this one value
+    kafka.metadata.broker.list=onap-strimzi-kafka-bootstrap:9092
+    config.zk.servers=127.0.0.1:2181
+    #kafka.request.required.acks=-1
+    consumer.timeout.ms=100
+    zookeeper.connection.timeout.ms=6000
+    zookeeper.session.timeout.ms=20000
+    zookeeper.sync.time.ms=2000
+    auto.commit.interval.ms=1000
+    fetch.message.max.bytes =1000000
+    auto.commit.enable=false
+
+    #(backoff*retries > zksessiontimeout)
+    kafka.rebalance.backoff.ms=10000
+    kafka.rebalance.max.retries=6
+
+
+    ###############################################################################
+    ##
+    ##        Secured Config
+    ##
+    ##        Some data stored in the config system is sensitive -- API keys and secrets,
+    ##        for example. to protect it, we use an encryption layer for this section
+    ##        of the config.
+    ##
+    ## The key is a base64 encode AES key. This must be created/configured for
+    ## each installation.
+    #cambria.secureConfig.key=
+    ##
+    ## The initialization vector is a 16 byte value specific to the secured store.
+    ## This must be created/configured for each installation.
+    #cambria.secureConfig.iv=
+
+    ## Southfield Sandbox
+    cambria.secureConfig.key=b/7ouTn9FfEw2PQwL0ov/Q==
+    cambria.secureConfig.iv=wR9xP5k5vbz/xD0LmtqQLw==
+    authentication.adminSecret=fe3cCompound
+    #cambria.secureConfig.key[pc569h]=YT3XPyxEmKCTLI2NK+Sjbw==
+    #cambria.secureConfig.iv[pc569h]=rMm2jhR3yVnU+u2V9Ugu3Q==
+
+
+    ###############################################################################
+    ##
+    ## Consumer Caching
+    ##
+    ##        Kafka expects live connections from the consumer to the broker, which
+    ##        obviously doesn't work over connectionless HTTP requests. The Cambria
+    ##        server proxies HTTP requests into Kafka consumer sessions that are kept
+    ##        around for later re-use. Not doing so is costly for setup per request,
+    ##        which would substantially impact a high volume consumer's performance.
+    ##
+    ##        This complicates Cambria server failover, because we often need server
+    ##        A to close its connection before server B brings up the replacement.
+    ##
+
+    ## The consumer cache is normally enabled.
+    #cambria.consumer.cache.enabled=true
+
+    ## Cached consumers are cleaned up after a period of disuse. The server inspects
+    ## consumers every sweepFreqSeconds and will clean up any connections that are
+    ## dormant for touchFreqMs.
+    #cambria.consumer.cache.sweepFreqSeconds=15
+    cambria.consumer.cache.touchFreqMs=120000
+    ##stickforallconsumerrequests=false
+    ## The cache is managed through ZK. The default value for the ZK connection
+    ## string is the same as config.zk.servers.
+    #cambria.consumer.cache.zkConnect=${config.zk.servers}
+
+    ##
+    ## Shared cache information is associated with this node's name. The default
+    ## name is the hostname plus the HTTP service port this host runs on. (The
+    ## hostname is determined via InetAddress.getLocalHost ().getCanonicalHostName(),
+    ## which is not always adequate.) You can set this value explicitly here.
+    ##
+    #cambria.api.node.identifier=<use-something-unique-to-this-instance>
+
+    #cambria.rateLimit.maxEmptyPollsPerMinute=30
+    #cambria.rateLimitActual.delay.ms=10
+
+    ###############################################################################
+    ##
+    ## Metrics Reporting
+    ##
+    ##        This server can report its metrics periodically on a topic.
+    ##
+    #metrics.send.cambria.enabled=true
+    #metrics.send.cambria.topic=cambria.apinode.metrics                                  #msgrtr.apinode.metrics.dmaap
+    #metrics.send.cambria.sendEverySeconds=60
+
+    cambria.consumer.cache.zkBasePath=/fe3c/cambria/consumerCache
+    consumer.timeout=17
+    default.partitions=3
+    default.replicas=3
+    ##############################################################################
+    #100mb
+    maxcontentlength=10000
+
+
+    ##############################################################################
+    #AAF Properties
+    msgRtr.namespace.aaf=org.onap.dmaap.mr.topic
+    msgRtr.topicfactory.aaf=org.onap.dmaap.mr.topicFactory|:org.onap.dmaap.mr.topic:
+    enforced.topic.name.AAF=org.onap.dmaap.mr
+    forceAAF=false
+    transidUEBtopicreqd=false
+    defaultNSforUEB=org.onap.dmaap.mr
+    ##############################################################################
+    #Mirror Maker Agent
+
+    msgRtr.mirrormakeradmin.aaf=org.onap.dmaap.mr.mirrormaker|*|admin
+    msgRtr.mirrormakeruser.aaf=org.onap.dmaap.mr.mirrormaker|*|user
+    msgRtr.mirrormakeruser.aaf.create=org.onap.dmaap.mr.topicFactory|:org.onap.dmaap.mr.topic:
+    msgRtr.mirrormaker.timeout=15000
+    msgRtr.mirrormaker.topic=org.onap.dmaap.mr.mirrormakeragent
+    msgRtr.mirrormaker.consumergroup=mmagentserver
+    msgRtr.mirrormaker.consumerid=1
+
+    kafka.max.poll.interval.ms=300000
+    kafka.heartbeat.interval.ms=60000
+    kafka.session.timeout.ms=240000
+    kafka.max.poll.records=1000
+---
+# Source: onap/charts/dmaap/charts/message-router/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-message-router-logback-xml-configmap
+  namespace: onap
+  labels:
+    app: message-router
+    chart: message-router-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  logback.xml: |
+    <!--
+         ============LICENSE_START=======================================================
+         Copyright © 2019 AT&T Intellectual Property. All rights reserved.
+         Modifications Copyright © 2021-2022 Nordix Foundation
+         ================================================================================
+         Licensed under the Apache License, Version 2.0 (the "License");
+         you may not use this file except in compliance with the License.
+         You may obtain a copy of the License at
+               http://www.apache.org/licenses/LICENSE-2.0
+
+         Unless required by applicable law or agreed to in writing, software
+         distributed under the License is distributed on an "AS IS" BASIS,
+         WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+         See the License for the specific language governing permissions and
+         limitations under the License.
+         ============LICENSE_END=========================================================
+     -->
+
+    <configuration scan="true" scanPeriod="3 seconds" debug="true">
+      <contextName>${module.ajsc.namespace.name}</contextName>
+      <jmxConfigurator />
+      <property name="logDirectory" value="${AJSC_HOME}/log" />
+      <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+          <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{1024} - %msg%n
+          </pattern>
+        </encoder>
+      </appender>
+
+      <appender name="INFO" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+          <level>INFO</level>
+          <onMatch>ACCEPT</onMatch>
+          <onMismatch>DENY</onMismatch>
+        </filter>
+      </appender>
+
+      <appender name="DEBUG" class="ch.qos.logback.core.ConsoleAppender">
+
+        <encoder>
+          <pattern>"%d [%thread] %-5level %logger{1024} - %msg%n"</pattern>
+        </encoder>
+      </appender>
+
+      <appender name="ERROR" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+          <level>ERROR</level>
+          <onMatch>ACCEPT</onMatch>
+          <onMismatch>DENY</onMismatch>
+        </filter>
+        <encoder>
+          <pattern>"%d [%thread] %-5level %logger{1024} - %msg%n"</pattern>
+        </encoder>
+      </appender>
+
+
+      <!-- Msgrtr related loggers -->
+      <logger name="org.onap.dmaap.dmf.mr.service" level="TRACE" />
+      <logger name="org.onap.dmaap.dmf.mr.service.impl" level="TRACE" />
+
+      <logger name="org.onap.dmaap.dmf.mr.resources" level="TRACE" />
+      <logger name="org.onap.dmaap.dmf.mr.resources.streamReaders" level="TRACE" />
+
+      <logger name="org.onap.dmaap.dmf.mr.backends" level="TRACE" />
+      <logger name="org.onap.dmaap.dmf.mr.backends.kafka" level="TRACE" />
+      <logger name="org.onap.dmaap.dmf.mr.backends.memory" level="TRACE" />
+
+      <logger name="org.onap.dmaap.dmf.mr.beans" level="TRACE" />
+
+      <logger name="org.onap.dmaap.dmf.mr.constants" level="TRACE" />
+
+      <logger name="org.onap.dmaap.dmf.mr.exception" level="TRACE" />
+
+      <logger name="org.onap.dmaap.dmf.mr.listener" level="TRACE" />
+
+      <logger name="org.onap.dmaap.dmf.mr.metabroker" level="TRACE" />
+
+      <logger name="org.onap.dmaap.dmf.mr.metrics.publisher" level="TRACE" />
+      <logger name="org.onap.dmaap.dmf.mr.metrics.publisher.impl" level="TRACE" />
+
+
+
+      <logger name="org.onap.dmaap.dmf.mr.security" level="TRACE" />
+      <logger name="org.onap.dmaap.dmf.mr.security.impl" level="TRACE" />
+
+      <logger name="org.onap.dmaap.dmf.mr.transaction" level="TRACE" />
+      <logger name="com.att.dmf.mr.transaction.impl" level="TRACE" />
+
+      <logger name="org.onap.dmaap.dmf.mr.metabroker" level="TRACE" />
+      <logger name="org.onap.dmaap.dmf.mr.metabroker" level="TRACE" />
+
+      <logger name="org.onap.dmaap.dmf.mr.utils" level="TRACE" />
+      <logger name="org.onap.dmaap.mr.filter" level="TRACE" />
+
+      <!--<logger name="com.att.nsa.cambria.*" level="TRACE" />-->
+
+      <!-- Msgrtr loggers in ajsc -->
+      <logger name="org.onap.dmaap.service" level="TRACE" />
+      <logger name="org.onap.dmaap" level="TRACE" />
+
+
+      <!-- Spring related loggers -->
+      <logger name="org.springframework" level="TRACE" additivity="false"/>
+      <logger name="org.springframework.beans" level="TRACE" additivity="false"/>
+      <logger name="org.springframework.web" level="TRACE" additivity="false" />
+      <logger name="com.blog.spring.jms" level="TRACE" additivity="false" />
+
+      <!-- AJSC Services (bootstrap services) -->
+      <logger name="ajsc" level="TRACE" additivity="false"/>
+      <logger name="ajsc.RouteMgmtService" level="TRACE" additivity="false"/>
+      <logger name="ajsc.ComputeService" level="TRACE" additivity="false" />
+      <logger name="ajsc.VandelayService" level="TRACE" additivity="false"/>
+      <logger name="ajsc.FilePersistenceService" level="TRACE" additivity="false"/>
+      <logger name="ajsc.UserDefinedJarService" level="TRACE" additivity="false" />
+      <logger name="ajsc.UserDefinedBeansDefService" level="TRACE" additivity="false" />
+      <logger name="ajsc.LoggingConfigurationService" level="TRACE" additivity="false" />
+
+      <!-- AJSC related loggers (DME2 Registration, csi logging, restlet, servlet
+        logging) -->
+      <logger name="ajsc.utils" level="TRACE" additivity="false"/>
+      <logger name="ajsc.utils.DME2Helper" level="TRACE" additivity="false" />
+      <logger name="ajsc.filters" level="TRACE" additivity="false" />
+      <logger name="ajsc.beans.interceptors" level="TRACE" additivity="false" />
+      <logger name="ajsc.restlet" level="TRACE" additivity="false" />
+      <logger name="ajsc.servlet" level="TRACE" additivity="false" />
+      <logger name="com.att" level="TRACE" additivity="false" />
+      <logger name="com.att.ajsc.csi.logging" level="TRACE" additivity="false" />
+      <logger name="com.att.ajsc.filemonitor" level="TRACE" additivity="false"/>
+
+      <logger name="com.att.nsa.dmaap.util" level="TRACE" additivity="false"/>
+      <logger name="com.att.cadi.filter" level="TRACE" additivity="false" />
+
+
+      <!-- Other Loggers that may help troubleshoot -->
+      <logger name="net.sf" level="TRACE" additivity="false" />
+      <logger name="org.apache.commons.httpclient" level="TRACE" additivity="false"/>
+      <logger name="org.apache.commons" level="TRACE" additivity="false" />
+      <logger name="org.apache.coyote" level="TRACE" additivity="false"/>
+      <logger name="org.apache.jasper" level="TRACE" additivity="false"/>
+
+      <!-- Camel Related Loggers (including restlet/servlet/jaxrs/cxf logging.
+        May aid in troubleshooting) -->
+      <logger name="org.apache.camel" level="TRACE" additivity="false" />
+      <logger name="org.apache.cxf" level="TRACE" additivity="false" />
+      <logger name="org.apache.camel.processor.interceptor" level="TRACE" additivity="false"/>
+      <logger name="org.apache.cxf.jaxrs.interceptor" level="TRACE" additivity="false" />
+      <logger name="org.apache.cxf.service" level="TRACE" additivity="false" />
+      <logger name="org.restlet" level="TRACE" additivity="false" />
+      <logger name="org.apache.camel.component.restlet" level="TRACE" additivity="false" />
+      <logger name="org.apache.kafka" level="TRACE" additivity="false" />
+      <logger name="org.apache.zookeeper" level="TRACE" additivity="false" />
+      <logger name="org.I0Itec.zkclient" level="TRACE" additivity="false" />
+
+      <!-- logback internals logging -->
+      <logger name="ch.qos.logback.classic" level="TRACE" additivity="false"/>
+      <logger name="ch.qos.logback.core" level="TRACE" additivity="false" />
+
+      <!-- logback jms appenders & loggers definition starts here -->
+      <!-- logback jms appenders & loggers definition starts here -->
+      <appender name="auditLogs" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+        </filter>
+        <encoder>
+          <pattern>"%d [%thread] %-5level %logger{1024} - %msg%n"</pattern>
+        </encoder>
+      </appender>
+      <appender name="perfLogs" class="ch.qos.logback.core.ConsoleAppender">
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+        </filter>
+        <encoder>
+          <pattern>"%d [%thread] %-5level %logger{1024} - %msg%n"</pattern>
+        </encoder>
+      </appender>
+      <appender name="ASYNC-audit" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1000</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="Audit-Record-Queue" />
+      </appender>
+
+      <logger name="AuditRecord" level="TRACE" additivity="FALSE">
+        <appender-ref ref="STDOUT" />
+      </logger>
+      <logger name="AuditRecord_DirectCall" level="TRACE" additivity="FALSE">
+        <appender-ref ref="STDOUT" />
+      </logger>
+      <appender name="ASYNC-perf" class="ch.qos.logback.classic.AsyncAppender">
+        <queueSize>1000</queueSize>
+        <discardingThreshold>0</discardingThreshold>
+        <appender-ref ref="Performance-Tracker-Queue" />
+      </appender>
+      <logger name="PerfTrackerRecord" level="TRACE" additivity="FALSE">
+        <appender-ref ref="ASYNC-perf" />
+        <appender-ref ref="perfLogs" />
+      </logger>
+      <!-- logback jms appenders & loggers definition ends here -->
+
+      <root level="TRACE">
+        <appender-ref ref="DEBUG" />
+        <appender-ref ref="ERROR" />
+        <appender-ref ref="INFO" />
+        <appender-ref ref="STDOUT" />
+      </root>
+
+    </configuration>
+---
+# Source: onap/charts/dmaap/charts/message-router/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-message-router-etc
+  namespace: onap
+  labels:
+    app: message-router
+    chart: message-router-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  ajsc-jetty.xml: "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!-- \n-->\n\n<!DOCTYPE Configure PUBLIC \"-//Jetty//Configure//EN\" \"http://www.eclipse.org/jetty/configure_9_0.dtd\">\n<Configure id=\"ajsc-server\" class=\"org.eclipse.jetty.server.Server\">\n  <!-- DO NOT REMOVE!!!! This is setting up the AJSC Context -->\n  <New id=\"ajscContext\" class=\"org.eclipse.jetty.webapp.WebAppContext\">\n    <Set name=\"contextPath\"><SystemProperty name=\"AJSC_CONTEXT_PATH\" /></Set>\n    <Set name=\"extractWAR\">true</Set>\n    <Set name=\"tempDirectory\"><SystemProperty name=\"AJSC_TEMP_DIR\" /></Set>\n    <Set name=\"war\"><SystemProperty name=\"AJSC_WAR_PATH\" /></Set>\n    <Set name=\"descriptor\"><SystemProperty name=\"AJSC_HOME\" />/etc/runner-web.xml</Set>\n    <Set name=\"overrideDescriptor\"><SystemProperty name=\"AJSC_HOME\" />/etc/ajsc-override-web.xml</Set>\n    <Set name=\"throwUnavailableOnStartupException\">true</Set>\n    <Set name=\"extraClasspath\"><SystemProperty name=\"AJSC_HOME\" />/extJars/json-20131018.jar</Set>\n    <Set name=\"servletHandler\">\n      <New class=\"org.eclipse.jetty.servlet.ServletHandler\">\n        <Set name=\"startWithUnavailable\">false</Set>\n      </New>\n    </Set>\n  </New>\n\n  <Set name=\"handler\">\n    <New id=\"Contexts\" class=\"org.eclipse.jetty.server.handler.ContextHandlerCollection\">\n      <Set name=\"Handlers\">\n        <Array type=\"org.eclipse.jetty.webapp.WebAppContext\">\n          <Item>\n            <Ref refid=\"ajscContext\" />\n          </Item>\n        </Array>\n      </Set>\n    </New>\n  </Set>\n\n  <Call name=\"addBean\">\n    <Arg>\n      <New id=\"DeploymentManager\" class=\"org.eclipse.jetty.deploy.DeploymentManager\">\n        <Set name=\"contexts\">\n          <Ref refid=\"Contexts\" />\n        </Set>\n        <Call id=\"extAppHotDeployProvider\" name=\"addAppProvider\">\n          <Arg>\n            <New class=\"org.eclipse.jetty.deploy.providers.WebAppProvider\">\n              <Set name=\"monitoredDirName\"><SystemProperty name=\"AJSC_HOME\" />/extApps</Set>\n              <Set name=\"scanInterval\">10</Set>\n              <Set name=\"extractWars\">true</Set>\n            </New>\n          </Arg>\n        </Call>\n      </New>\n    </Arg>\n  </Call>\n\n  <Call name=\"addConnector\">\n    <Arg>\n      <New class=\"org.eclipse.jetty.server.ServerConnector\">\n        <Arg name=\"server\">\n          <Ref refid=\"ajsc-server\" />\n        </Arg>\n        <Set name=\"port\"><SystemProperty name=\"AJSC_HTTP_PORT\" default=\"8080\" /></Set>\n      </New>\n    </Arg>\n  </Call>\n\n\n  <!-- SSL Keystore configuration -->\n\n  <New id=\"sslContextFactory\" class=\"org.eclipse.jetty.util.ssl.SslContextFactory\">\n    <Set name=\"KeyStorePath\">/appl/dmaapMR1/bundleconfig/etc/sysprops/local/org.onap.dmaap.mr.jks</Set>\n    <Set name=\"KeyStorePassword\">${KEYSTORE_PASSWORD}</Set>\n    <Set name=\"KeyManagerPassword\">${KEYSTORE_PASSWORD}</Set>\n    <Set name=\"WantClientAuth\">true</Set>\n  </New>\n  <Call id=\"sslConnector\" name=\"addConnector\">\n    <Arg>\n      <New class=\"org.eclipse.jetty.server.ServerConnector\">\n        <Arg name=\"server\">\n          <Ref refid=\"ajsc-server\" />\n        </Arg>\n        <Arg name=\"factories\">\n          <Array type=\"org.eclipse.jetty.server.ConnectionFactory\">\n            <Item>\n              <New class=\"org.eclipse.jetty.server.SslConnectionFactory\">\n                <Arg name=\"next\">http/1.1</Arg>\n                <Arg name=\"sslContextFactory\">\n                  <Ref refid=\"sslContextFactory\" />\n                </Arg>\n              </New>\n            </Item>\n            <Item>\n              <New class=\"org.eclipse.jetty.server.HttpConnectionFactory\">\n                <Arg name=\"config\">\n                  <New class=\"org.eclipse.jetty.server.HttpConfiguration\">\n                    <Call name=\"addCustomizer\">\n                      <Arg>\n                        <New class=\"org.eclipse.jetty.server.SecureRequestCustomizer\" />\n                      </Arg>\n                    </Call>\n                  </New>\n                </Arg>\n              </New>\n            </Item>\n          </Array>\n        </Arg>\n        <Set name=\"port\"><SystemProperty name=\"AJSC_HTTPS_PORT\" default=\"0\" /></Set>\n        <Set name=\"idleTimeout\">30000</Set>\n      </New>\n    </Arg>\n  </Call>\n\n\n  <Get name=\"ThreadPool\">\n    <Set name=\"minThreads\"><SystemProperty name=\"AJSC_JETTY_ThreadCount_MIN\" /></Set>\n    <Set name=\"maxThreads\"><SystemProperty name=\"AJSC_JETTY_ThreadCount_MAX\" /></Set>\n    <Set name=\"idleTimeout\"><SystemProperty name=\"AJSC_JETTY_IDLETIME_MAX\" /></Set>\n    <Set name=\"detailedDump\">false</Set>\n  </Get>\n\n</Configure>\n"
+  cadi.properties: |
+    aaf_locate_url=https://aaf-locate.onap:8095
+    aaf_url=https://AAF_LOCATE_URL/onap.org.osaaf.aaf.service:2.1
+    aaf_env=DEV
+    aaf_lur=org.onap.aaf.cadi.aaf.v2_0.AAFLurPerm
+
+    cadi_truststore=/appl/dmaapMR1/bundleconfig/etc/sysprops/local/org.onap.dmaap.mr.trust.jks
+    cadi_truststore_password=${TRUSTSTORE_PASSWORD}
+
+    cadi_keyfile=/appl/dmaapMR1/bundleconfig/etc/sysprops/local/org.onap.dmaap.mr.keyfile
+
+    cadi_alias=dmaapmr@mr.dmaap.onap.org
+    cadi_keystore=/appl/dmaapMR1/bundleconfig/etc/sysprops/local/org.onap.dmaap.mr.p12
+    cadi_keystore_password=${KEYSTORE_PASSWORD_P12}
+    cadi_x509_issuers=CN=intermediateCA_1, OU=OSAAF, O=ONAP, C=US:CN=intermediateCA_7, OU=OSAAF, O=ONAP, C=US:CN=intermediateCA_9, OU=OSAAF, O=ONAP, C=US
+
+    cadi_loglevel=INFO
+    cadi_protocols=TLSv1.1,TLSv1.2
+    cadi_latitude=37.78187
+    cadi_longitude=-122.26147
+  runner-web.xml: |
+    <?xml version="1.0" encoding="ISO-8859-1"?>
+    <!--
+    -->
+    <web-app xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd" metadata-complete="false" version="3.0">
+
+      <context-param>
+        <param-name>contextConfigLocation</param-name>
+        <param-value>/WEB-INF/spring-servlet.xml,
+              classpath:applicationContext.xml
+    </param-value>
+      </context-param>
+
+      <context-param>
+        <param-name>spring.profiles.default</param-name>
+        <param-value>nooauth</param-value>
+      </context-param>
+
+      <listener>
+        <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+      </listener>
+
+      <servlet>
+        <servlet-name>ManagementServlet</servlet-name>
+        <servlet-class>ajsc.ManagementServlet</servlet-class>
+      </servlet>
+
+      <filter>
+        <filter-name>WriteableRequestFilter</filter-name>
+        <filter-class>com.att.ajsc.csi.writeablerequestfilter.WriteableRequestFilter</filter-class>
+      </filter>
+
+      <filter>
+        <filter-name>InterceptorFilter</filter-name>
+        <filter-class>ajsc.filters.InterceptorFilter</filter-class>
+        <init-param>
+          <param-name>preProcessor_interceptor_config_file</param-name>
+          <param-value>/etc/PreProcessorInterceptors.properties</param-value>
+        </init-param>
+        <init-param>
+          <param-name>postProcessor_interceptor_config_file</param-name>
+          <param-value>/etc/PostProcessorInterceptors.properties</param-value>
+        </init-param>
+
+      </filter>
+
+      <!-- Content length filter for Msgrtr -->
+      <filter>
+        <display-name>DMaaPAuthFilter</display-name>
+        <filter-name>DMaaPAuthFilter</filter-name>
+        <filter-class>org.onap.dmaap.util.DMaaPAuthFilter</filter-class>
+        <init-param>
+          <param-name>cadi_prop_files</param-name>
+          <param-value>/appl/dmaapMR1/bundleconfig/etc/sysprops/local/cadi.properties</param-value>
+        </init-param>
+      </filter>
+
+      <!-- End Content length filter for Msgrtr -->
+      <servlet>
+        <servlet-name>RestletServlet</servlet-name>
+        <servlet-class>ajsc.restlet.RestletSpringServlet</servlet-class>
+        <init-param>
+          <param-name>org.restlet.component</param-name>
+          <param-value>restletComponent</param-value>
+        </init-param>
+      </servlet>
+
+      <servlet>
+        <servlet-name>CamelServlet</servlet-name>
+        <servlet-class>ajsc.servlet.AjscCamelServlet</servlet-class>
+      </servlet>
+
+
+      <filter>
+        <filter-name>springSecurityFilterChain</filter-name>
+        <filter-class>org.springframework.web.filter.DelegatingFilterProxy</filter-class>
+      </filter>
+
+      <servlet>
+        <servlet-name>spring</servlet-name>
+        <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+        <load-on-startup>1</load-on-startup>
+      </servlet>
+
+      <servlet-mapping>
+        <servlet-name>spring</servlet-name>
+        <url-pattern>/</url-pattern>
+      </servlet-mapping>
+
+    </web-app>
+---
+# Source: onap/charts/dmaap/charts/message-router/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-message-router-sys-props
+  namespace: onap
+  labels:
+    app: message-router
+    chart: message-router-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  sys-props.properties: |-
+    ###############################################################################
+    #  ============LICENSE_START=======================================================
+    #  org.onap.dmaap
+    #  ================================================================================
+    #  Copyright (c) 2017-201 AT&T Intellectual Property. All rights reserved.
+    #  Copyright (c) 2021 Orange Intellectual Property. All rights reserved.
+    #  ================================================================================
+    #  Licensed under the Apache License, Version 2.0 (the "License");
+    #  you may not use this file except in compliance with the License.
+    #  You may obtain a copy of the License at
+    #        http://www.apache.org/licenses/LICENSE-2.0
+    #
+    #  Unless required by applicable law or agreed to in writing, software
+    #  distributed under the License is distributed on an "AS IS" BASIS,
+    #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    #  See the License for the specific language governing permissions and
+    #  limitations under the License.
+    #  ============LICENSE_END=========================================================
+    #
+    #  ECOMP is a trademark and service mark of AT&T Intellectual Property.
+    #
+    ###############################################################################
+    #This file is used for defining AJSC system properties for different configuration schemes and is necessary for the AJSC to run properly.
+    #The sys-props.properties file is used for running locally. The template.sys-props.properties file will be used when deployed
+    #to a SOA/CSI Cloud node. For more information,
+
+    #AJSC System Properties. The following properties are required for ALL AJSC services. If you are adding System Properties for your
+    #particular service, please add them AFTER all AJSC related System Properties.
+
+    #For Cadi Authorization, use value="authentication-scheme-1
+    CadiAuthN=authentication-scheme-1
+
+    #For Basic Authorization, use value="authentication-scheme-1
+    authN=authentication-scheme-2
+
+    #Persistence used for AJSC meta-data storage. For most environments, "file" should be used.
+    ajscPersistence=file
+
+    # If using hawtio for local development, these properties will allow for faster server startup and usage for local development
+    hawtio.authenticationEnabled=false
+    hawtio.config.pullOnStartup=false
+
+    #Removes the extraneous restlet console output
+    org.restlet.engine.loggerFacadeClass=org.restlet.ext.slf4j.Slf4jLoggerFacade
+
+    #server.host property to be enabled for local DME2 related testing
+    #server.host=<Your network IP address>
+
+    #Enable/disable SSL (values=true/false). This property also determines which protocol to use (https if true, http otherwise), to register services into GRM through DME2.
+    enableSSL=false
+
+    #Enable/disable csi logging (values=true/false). This can be disabled during local development
+    csiEnable=false
+
+    #Enable/disable CAET This can be disabled during local development
+    isCAETEnable=true
+
+    #Enable/disable EJB Container
+    ENABLE_EJB=false
+
+    #Enable/disable OSGI
+    isOSGIEnable=false
+
+    #Configure JMS Queue (WMQ/TIBCO)
+    JMS_BROKER=WMQ
+
+    #Generate/Skip api docs
+    isApiDoc=false
+
+
+    #WMQ connectivity
+    JMS_WMQ_PROVIDER_URL=aftdsc://AFTUAT/34.07/-84.28
+    JMS_WMQ_CONNECTION_FACTORY_NAME=aftdsc://AFTUAT/?service=CSILOG,version=1.0,bindingType=fusionBus,envContext=Q,Q30A=YES
+    JMS_WMQ_INITIAL_CONNECTION_FACTORY_NAME=com.att.aft.jms.FusionCtxFactory
+    JMS_WMQ_AUDIT_DESTINATION_NAME=queue:///CSILOGQL.M2E.DASHBOARD01.NOT.Q30A
+    JMS_WMQ_PERF_DESTINATION_NAME=queue:///CSILOGQL.M2E.PERFORMANCE01.NOT.Q30A
+
+    #CSI related variables for CSM framework
+    csm.hostname=d1a-m2e-q112m2e1.edc.cingular.net
+
+    #Enable/disable endpoint level logging (values=true/false). This can be disabled during local development
+    endpointLogging=false
+
+    #Enable/disable trail logging and trail logging summary
+    enableTrailLogging=false
+    enableTrailLoggingSummary=false
+
+    #SOA_CLOUD_ENV is used to register your service with dme2 and can be turned off for local development (values=true/false).
+    SOA_CLOUD_ENV=false
+
+    #CONTINUE_ON_LISTENER_EXCEPTION will exit the application if there is a DME2 exception at the time of registration.
+    CONTINUE_ON_LISTENER_EXCEPTION=false
+
+    #Jetty Container ThreadCount Configuration Variables
+    AJSC_JETTY_ThreadCount_MIN=1
+    AJSC_JETTY_ThreadCount_MAX=200
+    AJSC_JETTY_IDLETIME_MAX=3000
+
+    #Camel Context level default threadPool Profile configuration
+    CAMEL_POOL_SIZE=10
+    CAMEL_MAX_POOL_SIZE=20
+    CAMEL_KEEP_ALIVE_TIME=60
+    CAMEL_MAX_QUEUE_SIZE=1000
+
+    #File Monitor configurations
+    ssf_filemonitor_polling_interval=5
+    ssf_filemonitor_threadpool_size=10
+
+    #GRM/DME2 System Properties
+    AFT_DME2_CONN_IDLE_TIMEOUTMS=5000
+    AJSC_ENV=SOACLOUD
+
+    SOACLOUD_NAMESPACE=org.onap.dmaap.dev
+    SOACLOUD_ENV_CONTEXT=TEST
+    SOACLOUD_PROTOCOL=http
+    SOACLOUD_ROUTE_OFFER=DEFAULT
+
+    AFT_LATITUDE=23.4
+    AFT_LONGITUDE=33.6
+    AFT_ENVIRONMENT=AFTUAT
+
+    #Restlet Component Default Properties
+    RESTLET_COMPONENT_CONTROLLER_DAEMON=true
+    RESTLET_COMPONENT_CONTROLLER_SLEEP_TIME_MS=100
+    RESTLET_COMPONENT_INBOUND_BUFFER_SIZE=8192
+    RESTLET_COMPONENT_MIN_THREADS=1
+    RESTLET_COMPONENT_MAX_THREADS=10
+    RESTLET_COMPONENT_LOW_THREADS=8
+    RESTLET_COMPONENT_MAX_QUEUED=0
+    RESTLET_COMPONENT_MAX_CONNECTIONS_PER_HOST=-1
+    RESTLET_COMPONENT_MAX_TOTAL_CONNECTIONS=-1
+    RESTLET_COMPONENT_OUTBOUND_BUFFER_SIZE=8192
+    RESTLET_COMPONENT_PERSISTING_CONNECTIONS=true
+    RESTLET_COMPONENT_PIPELINING_CONNECTIONS=false
+    RESTLET_COMPONENT_THREAD_MAX_IDLE_TIME_MS=60000
+    RESTLET_COMPONENT_USE_FORWARDED_HEADER=false
+    RESTLET_COMPONENT_REUSE_ADDRESS=true
+
+    #Externalized jar and properties file location. In CSI environments, there are a few libs that have been externalized to aid
+    #in CSTEM maintenance of the versions of these libs. The most important to the AJSC is the DME2 lib. Not only is this lib necessary
+    #for proper registration of your AJSC service on a node, but it is also necessary for running locally as well. Another framework
+    #used in CSI envs is the CSM framework. These 2 framework libs are shown as "provided" dependencies within the pom.xml. These
+    #dependencies will be copied into the target/commonLibs folder with the normal "mvn clean package" goal of the AJSC. They will
+    #then be added to the classpath via AJSC_EXTERNAL_LIB_FOLDERS system property. Any files (mainly property files) that need
+    #to be on the classpath should be added to the AJSC_EXTERNAL_PROPERTIES_FOLDERS system property. The default scenario when
+    #testing your AJSC service locally will utilize the target/commonLibs directory for DME2 and CSM related artifacts and 2
+    #default csm properties files will be used for local testing with anything CSM knorelated.
+    #NOTE: we are using maven-replacer-plugin to replace "(doubleUnderscore)basedir(doubleUnderscore)" with ${basedir} within the
+    #target directory for running locally. Multiple folder locations can be separated by the pipe ("|") character.
+    #Please, NOTE: for running locally, we are setting this system property in the antBuild/build.xml "runLocal" target and in the
+    #"runAjsc" profile within the pom.xml. This is to most effectively use maven variables (${basedir}, most specifically. Therefore,
+    #when running locally, the following 2 properties should be set within the profile(s) themselves.
+    #Example: target/commonLibs|target/otherLibs
+    #AJSC_EXTERNAL_LIB_FOLDERS=__basedir__/target/commonLibs
+    #AJSC_EXTERNAL_PROPERTIES_FOLDERS=__basedir__/ajsc-shared-config/etc
+    #End of AJSC System Properties
+
+    #Service System Properties. Please, place any Service related System Properties below.
+
+    #msgrtr content length and error message
+    #100mb
+    maxcontentlength=10000
+    msg_size_exceeds=Message size exceeds the default size.
+    forceAAF=false
+    cadi_prop_files=/appl/dmaapMR1/bundleconfig/etc/sysprops/local/org.onap.dmaap.mr.properties

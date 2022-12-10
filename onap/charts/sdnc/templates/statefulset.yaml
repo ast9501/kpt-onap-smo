@@ -1,0 +1,670 @@
+# Source: onap/charts/sdnc/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: onap-sdnc
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: sdnc
+    helm.sh/chart: sdnc-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app: sdnc
+  serviceName: sdnc-cluster
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sdnc
+      app.kubernetes.io/instance: onap
+  podManagementPolicy: Parallel
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sdnc
+        helm.sh/chart: sdnc-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+      name: sdnc
+    spec:
+      initContainers:
+      - command:
+        - sh
+        args:
+        - -c
+        - "cd /config-input && for PFILE in `ls -1 .`; do envsubst <${PFILE} >/config/${PFILE}; done"
+        env:
+        - name: AAI_CLIENT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-aai-user-creds
+              key: login
+        - name: AAI_CLIENT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-aai-user-creds
+              key: password
+        - name: AAI_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-aai-truststore-password
+              key: password
+        - name: ANSIBLE_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-ansible-truststore-password
+              key: password
+        - name: SO_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-so-user-creds
+              key: login
+        - name: SO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-so-user-creds
+              key: password
+        - name: NENG_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-neng-user-creds
+              key: login
+        - name: NENG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-neng-user-creds
+              key: password
+        - name: CDS_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-cds-user-creds
+              key: login
+        - name: CDS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-cds-user-creds
+              key: password
+        - name: HONEYCOMB_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-honeycomb-user-creds
+              key: login
+        - name: HONEYCOMB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-honeycomb-user-creds
+              key: password
+        - name: TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-truststore-password
+              key: password
+        - name: KEYSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-keystore-password
+              key: password
+        - name: DMAAP_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-dmaap-user-creds
+              key: login
+        - name: DMAAP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-dmaap-user-creds
+              key: password
+        - name: DMAAP_AUTHKEY
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-dmaap-authkey
+              key: password
+        - name: MODELSERVICE_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-modeling-user-creds
+              key: login
+        - name: MODELSERVICE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-modeling-user-creds
+              key: password
+        - name: RESTCONF_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-restconf-creds
+              key: login
+        - name: RESTCONF_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-restconf-creds
+              key: password
+        - name: ANSIBLE_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-ansible-creds
+              key: login
+        - name: ANSIBLE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-ansible-creds
+              key: password
+        - name: SCALEOUT_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-scaleout-creds
+              key: login
+        - name: SCALEOUT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-scaleout-creds
+              key: password
+        - name: NETBOX_APIKEY
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-netbox-apikey
+              key: password
+        - name: SDNC_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: login
+        - name: SDNC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: password
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: login
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: password
+        - name: ODL_ADMIN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: login
+        - name: ODL_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: login
+        - name: ODL_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: password
+        - name: ODL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: password
+        volumeMounts:
+        - mountPath: /config-input
+          name: config-input
+        - mountPath: /config
+          name: properties
+        image: docker.io/dibi/envsubst:1
+        imagePullPolicy: IfNotPresent
+        name: sdnc-update-config
+      - command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - mariadb-galera
+        - --job-name
+        - onap-sdnc-dbinit-job
+        - --job-name
+        - onap-sdnc-sdnrdb-init-job
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        name: sdnc-readiness
+      - name: sdnc-cert-initializer-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-locate
+        - --container-name
+        - aaf-cm
+        - --container-name
+        - aaf-service
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: sdnc-aaf-config
+        image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-sdnc-aaf-config
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAPall.jks.b64
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAP.p12.b64
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+          subPath: retrieval_check.sh
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/aaf-add-config.sh
+          subPath: aaf-add-config.sh
+        command:
+        - sh
+        - -c
+        - |
+          /opt/app/aaf_config/bin/agent.sh
+          . /opt/app/aaf_config/bin/retrieval_check.sh
+          /opt/app/aaf_config/bin/aaf-add-config.sh
+        env:
+        - name: APP_FQI
+          value: "sdnc@sdnc.onap.org"
+        - name: aaf_locate_url
+          value: "https://aaf-locate.onap:8095"
+        - name: aaf_locator_container_ns
+          value: "onap"
+        - name: aaf_locator_container
+          value: "oom"
+        - name: aaf_locator_fqdn
+          value: "sdnc"
+        - name: aaf_locator_app_ns
+          value: "org.osaaf.aaf"
+        - name: DEPLOY_FQI
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-cert-initializer-deployer-creds
+              key: login
+        - name: DEPLOY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-cert-initializer-deployer-creds
+              key: password
+              #Note: want to put this on Nodes, eventually
+        - name: cadi_longitude
+          value: "-72.0"
+        - name: cadi_latitude
+          value: "38.0"
+          #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+        - name: aaf_locator_public_fqdn
+          value: "sdnc.onap.org"
+      - name: sdnc-chown
+        image: docker.io/busybox:1.34.1
+        command:
+        - sh
+        args:
+        - -c
+        - |
+          mkdir /opt/opendaylight/mdsal/journal
+          mkdir /opt/opendaylight/mdsal/snapshots
+          mkdir /opt/opendaylight/mdsal/daexim
+          chown -R 100:101 /opt/opendaylight/mdsal
+          chown -R 100:101 /opt/app/osaaf/local
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-sdnc-aaf-config
+        - mountPath: /opt/opendaylight/mdsal
+          name: onap-sdnc-data
+      containers:
+      - name: sdnc
+        image: nexus3.onap.org:10001/onap/sdnc-image:2.3.0
+        imagePullPolicy: IfNotPresent
+        command: ["/bin/bash"]
+        args: ["-c", "/opt/onap/sdnc/bin/createLinks.sh ; /opt/onap/sdnc/bin/startODL.sh"]
+        ports:
+        - containerPort: 8181
+        - containerPort: 8101
+        - containerPort: 8080
+        - containerPort: 2550
+        - containerPort: 6666
+        readinessProbe:
+          tcpSocket:
+            port: 8181
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        env:
+        - name: ODL_ADMIN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: login
+        - name: ODL_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: login
+        - name: ODL_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: password
+        - name: ODL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: password
+        - name: SDNC_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: login
+        - name: SDNC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: password
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: login
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: password
+        - name: MYSQL_DATABASE
+          value: "sdnctl"
+        - name: SDNC_CONFIG_DIR
+          value: "/opt/onap/sdnc/data/properties"
+        - name: AAI_CLIENT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-aai-user-creds
+              key: login
+        - name: AAI_CLIENT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-aai-user-creds
+              key: password
+        - name: AAI_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-aai-truststore-password
+              key: password
+        - name: ANSIBLE_TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-ansible-truststore-password
+              key: password
+        - name: SO_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-so-user-creds
+              key: login
+        - name: SO_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-so-user-creds
+              key: password
+        - name: NENG_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-neng-user-creds
+              key: login
+        - name: NENG_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-neng-user-creds
+              key: password
+        - name: CDS_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-cds-user-creds
+              key: login
+        - name: CDS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-cds-user-creds
+              key: password
+        - name: HONEYCOMB_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-honeycomb-user-creds
+              key: login
+        - name: HONEYCOMB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-honeycomb-user-creds
+              key: password
+        - name: TRUSTSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-truststore-password
+              key: password
+        - name: KEYSTORE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-keystore-password
+              key: password
+        - name: DMAAP_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-dmaap-user-creds
+              key: login
+        - name: DMAAP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-dmaap-user-creds
+              key: password
+        - name: DMAAP_AUTHKEY
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-dmaap-authkey
+              key: password
+        - name: ENABLE_ODL_CLUSTER
+          value: "true"
+        - name: MY_ODL_CLUSTER
+          value: "127.0.0.1"
+        - name: PEER_ODL_CLUSTER
+          value: "127.0.0.1"
+        - name: IS_PRIMARY_CLUSTER
+          value: "true"
+        - name: GEO_ENABLED
+          value: "false"
+        - name: SDNC_AAF_ENABLED
+          value: "true"
+        - name: SDNC_REPLICAS
+          value: "1"
+        - name: MYSQL_HOST
+          value: mariadb-galera
+        - name: MDSAL_PATH
+          value: /opt/opendaylight/mdsal
+        - name: DAEXIM_PATH
+          value: /opt/opendaylight/mdsal/daexim
+        - name: JOURNAL_PATH
+          value: /opt/opendaylight/segmented-journal
+        - name: SNAPSHOTS_PATH
+          value: /opt/opendaylight/snapshots
+        - name: JAVA_HOME
+          value: "/opt/java/openjdk"
+        - name: JAVA_OPTS
+          value: "-Xms512m -Xmx2048m"
+        - name: LOG4J_FORMAT_MSG_NO_LOOKUPS
+          value: "true"
+        - name: KARAF_CONSOLE_LOG_LEVEL
+          value: "INFO"
+        - name: SDNRWT
+          value: "true"
+        - name: SDNRONLY
+          value: "false"
+        - name: SDNRDBURL
+          value: "https://sdnrdb.onap:9200"
+        - name: SDNRDBTRUSTALLCERTS
+          value: "true"
+        - name: ENABLE_OAUTH
+          value: "false"
+        - name: SDNR_NETCONF_CALLHOME_ENABLED
+          value: "true"
+        - name: SDNR_VES_COLLECTOR_ENABLED
+          value: "true"
+        - name: SDNR_VES_COLLECTOR_TLS_ENABLED
+          value: "true"
+        - name: SDNR_VES_COLLECTOR_TRUST_ALL_CERTS
+          value: "true"
+        - name: SDNR_VES_COLLECTOR_IP
+          value: "dcae-ves-collector.onap"
+        - name: SDNR_VES_COLLECTOR_PORT
+          value: "8443"
+        - name: SDNR_VES_COLLECTOR_VERSION
+          value: "v7"
+        - name: SDNR_VES_COLLECTOR_REPORTING_ENTITY_NAME
+          value: "ONAP SDN-R"
+        - name: SDNR_VES_COLLECTOR_EVENTLOG_MSG_DETAIL
+          value: "LONG"
+        - name: SDNR_VES_COLLECTOR_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-ves-collector-secret
+              key: login
+        - name: SDNR_VES_COLLECTOR_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-ves-collector-secret
+              key: password
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-sdnc-aaf-config
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /opt/opendaylight/current/etc/org.ops4j.pax.logging.cfg
+          name: sdnc-logging-cfg-config
+          subPath: org.ops4j.pax.logging.cfg
+        - mountPath: /opt/onap/sdnc/bin/installSdncDb.sh
+          name: bin
+          subPath: installSdncDb.sh
+        - mountPath: /opt/onap/sdnc/bin/createLinks.sh
+          name: bin
+          subPath: createLinks.sh
+        - mountPath: /opt/onap/ccsdk/data/properties/aaiclient.properties
+          name: properties
+          subPath: aaiclient.properties
+        - mountPath: /opt/onap/sdnc/data/properties/aaiclient.properties
+          name: properties
+          subPath: aaiclient.properties
+        - mountPath: /opt/onap/sdnc/data/properties/dblib.properties
+          name: properties
+          subPath: dblib.properties
+        - mountPath: /opt/onap/sdnc/data/properties/lcm-dg.properties
+          name: properties
+          subPath: lcm-dg.properties
+        - mountPath: /opt/onap/sdnc/data/properties/svclogic.properties
+          name: properties
+          subPath: svclogic.properties
+        - mountPath: /opt/onap/sdnc/svclogic/config/svclogic.properties
+          name: properties
+          subPath: svclogic.properties
+        - mountPath: /opt/onap/sdnc/data/properties/netbox.properties
+          name: properties
+          subPath: netbox.properties
+        - mountPath: /opt/onap/sdnc/data/properties/blueprints-processor-adaptor.properties
+          name: properties
+          subPath: blueprints-processor-adaptor.properties
+        - mountPath: /opt/opendaylight/mdsal
+          name: onap-sdnc-data
+        - mountPath: /var/log/onap
+          name: logs
+        - mountPath: /opt/opendaylight/system/org/opendaylight/controller/sal-clustering-config/1.10.4/sal-clustering-config-1.10.4-akkaconf.xml
+          name: properties
+          subPath: akka.conf
+        - mountPath: /opt/opendaylight/etc/org.opendaylight.controller.cluster.datastore.cfg
+          name: properties
+          subPath: org.opendaylight.controller.cluster.datastore.cfg
+        - mountPath: /opt/opendaylight/etc/org.opendaylight.aaa.filterchain.cfg
+          name: properties
+          subPath: org.opendaylight.aaa.filterchain.cfg
+        - mountPath: /opt/opendaylight/bin/setenv
+          name: properties
+          subPath: setenv
+        - mountPath: /opt/opendaylight/etc/mountpoint-registrar.properties
+          name: properties
+          subPath: mountpoint-registrar.properties
+        - mountPath: /opt/opendaylight/etc/mountpoint-state-provider.properties
+          name: properties
+          subPath: mountpoint-state-provider.properties
+        - mountPath: /opt/opendaylight/etc/org.opendaylight.daexim.cfg
+          name: properties
+          subPath: org.opendaylight.daexim.cfg
+        resources: {}
+      # side car containers
+
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"
+      serviceAccountName: onap-sdnc-read
+      volumes:
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: logs
+        emptyDir: {}
+      - name: sdnc-logging-cfg-config
+        configMap:
+          name: onap-sdnc-log-configmap
+      - name: bin
+        configMap:
+          name: onap-sdnc-bin
+          defaultMode: 0755
+      - name: config-input
+        configMap:
+          name: onap-sdnc-properties
+          defaultMode: 0644
+      - name: properties
+        emptyDir:
+          medium: Memory
+      - name: onap-sdnc-aaf-config
+        emptyDir:
+          medium: Memory
+      - name: aaf-agent-certs
+        configMap:
+          name: onap-cert-wrapper-certs
+          defaultMode: 0700
+      - name: aaf-add-config
+        configMap:
+          name: onap-sdnc-cert-initializer-add-config
+          defaultMode: 0700
+  volumeClaimTemplates:
+  - metadata:
+      name: onap-sdnc-data
+      labels:
+        name: onap-sdnc
+        chart: "sdnc-10.0.0"
+        release: "onap"
+        heritage: "Helm"
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: onap-sdnc-data
+      resources:
+        requests:
+          storage: 1Gi

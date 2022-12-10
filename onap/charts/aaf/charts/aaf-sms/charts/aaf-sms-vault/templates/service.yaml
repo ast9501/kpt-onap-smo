@@ -1,0 +1,21 @@
+# Source: onap/charts/aaf/charts/aaf-sms/charts/aaf-sms-vault/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: aaf-sms-db
+  namespace: onap
+  labels:
+    app: onap-aaf-sms-vault
+    chart: aaf-sms-vault-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - name: aaf-sms-db
+    port: 8200
+    targetPort: 8200
+    protocol: TCP
+  selector:
+    app: aaf-sms-vault
+    release: onap

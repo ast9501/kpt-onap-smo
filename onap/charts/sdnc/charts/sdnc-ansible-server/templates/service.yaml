@@ -1,0 +1,20 @@
+# Source: onap/charts/sdnc/charts/sdnc-ansible-server/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: sdnc-ansible-server
+  namespace: onap
+  labels:
+    app: sdnc-ansible-server
+    chart: sdnc-ansible-server-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: sdnc-ansible-server
+  selector:
+    app.kubernetes.io/name: sdnc-ansible-server
+    app.kubernetes.io/instance: onap

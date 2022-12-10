@@ -1,0 +1,56 @@
+# Source: onap/charts/policy/charts/mariadb-galera/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: policy-mariadb
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: policy-mariadb
+    helm.sh/chart: mariadb-galera-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 3306
+    targetPort: tcp-mysql
+    protocol: TCP
+    name: tcp-mysql
+  ipFamilyPolicy: PreferDualStack
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: policy-mariadb
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None
+---
+# Source: onap/charts/policy/charts/mariadb-galera/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: policy-mariadb-headless
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: policy-mariadb
+    helm.sh/chart: mariadb-galera-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  clusterIP: None
+  ports:
+  - port: 4567
+    targetPort: tcp-galera
+    protocol: TCP
+    name: tcp-galera
+  - port: 4568
+    targetPort: tcp-ist
+    protocol: TCP
+    name: tcp-ist
+  - port: 4444
+    targetPort: tcp-sst
+    protocol: TCP
+    name: tcp-sst
+  ipFamilyPolicy: PreferDualStack
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: policy-mariadb
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

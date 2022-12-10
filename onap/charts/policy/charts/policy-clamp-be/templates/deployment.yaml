@@ -1,0 +1,217 @@
+# Source: onap/charts/policy/charts/policy-clamp-be/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-policy-clamp-be
+  namespace: onap
+  labels:
+    app: policy-clamp-be
+    chart: policy-clamp-be-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: policy-clamp-be
+  template:
+    metadata:
+      labels:
+        app: policy-clamp-be
+        release: onap
+    spec:
+      initContainers:
+      - command:
+        - /app/ready.py
+        args:
+        - --job-name
+        - onap-policy-clamp-galera-config
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        name: policy-clamp-be-readiness
+      - name: clamp-backend-cert-initializer-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-locate
+        - --container-name
+        - aaf-cm
+        - --container-name
+        - aaf-service
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: policy-clamp-be-aaf-config
+        image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-policy-clamp-be-aaf-config
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAPall.jks.b64
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAP.p12.b64
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+          subPath: retrieval_check.sh
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/aaf-add-config.sh
+          subPath: aaf-add-config.sh
+        command:
+        - sh
+        - -c
+        - |
+          /opt/app/aaf_config/bin/agent.sh
+          . /opt/app/aaf_config/bin/retrieval_check.sh
+          /opt/app/aaf_config/bin/aaf-add-config.sh
+        env:
+        - name: APP_FQI
+          value: "clamp@clamp.onap.org"
+        - name: aaf_locate_url
+          value: "https://aaf-locate.onap:8095"
+        - name: aaf_locator_container_ns
+          value: "onap"
+        - name: aaf_locator_container
+          value: "oom"
+        - name: aaf_locator_fqdn
+          value: "clamp"
+        - name: aaf_locator_app_ns
+          value: "org.osaaf.aaf"
+        - name: DEPLOY_FQI
+          valueFrom:
+            secretKeyRef:
+              name: onap-clamp-backend-cert-initializer-deployer-creds
+              key: login
+        - name: DEPLOY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-clamp-backend-cert-initializer-deployer-creds
+              key: password
+              #Note: want to put this on Nodes, eventually
+        - name: cadi_longitude
+          value: "-72.0"
+        - name: cadi_latitude
+          value: "38.0"
+          #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+        - name: aaf_locator_public_fqdn
+          value: "clamp.onap.org"
+      containers:
+      # side car containers
+
+      # main container
+      - name: policy-clamp-be
+        image: nexus3.onap.org:10001/onap/policy-clamp-backend:6.2.3
+        imagePullPolicy: IfNotPresent
+        command:
+        - sh
+        workingDir: "/opt/policy/clamp/"
+        args:
+        - -c
+        - |
+          export $(grep '^cadi_' /opt/app/osaaf/local/org.onap.clamp.cred.props | xargs -0)
+          export SDC_CLIENT_PASSWORD_ENC=`java -jar /opt/app/osaaf/local/aaf-cadi-aaf-2.1.20-full.jar cadi digest ${SDC_CLIENT_PASSWORD} /opt/app/osaaf/local/org.onap.clamp.keyfile`;
+          envsubst < "/opt/policy/clamp/sdc-controllers-config.json" > "/opt/policy/clamp/sdc-controllers-config-pass.json"
+          java -Djava.security.egd=file:/dev/./urandom ${JAVA_RAM_CONFIGURATION} -jar ./policy-clamp-backend.jar --spring.config.location=optional:classpath:/,optional:classpath:/config/,optional:file:./,optional:file:./config/
+        ports:
+        - containerPort: 8443
+        # disable liveness probe when breakpoints set in debugger
+        # so K8s doesn't restart unresponsive container
+        livenessProbe:
+          tcpSocket:
+            port: 8443
+          initialDelaySeconds: 120
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 8443
+          initialDelaySeconds: 10
+          periodSeconds: 10
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-policy-clamp-be-aaf-config
+        - name: logs
+          mountPath: /var/log/onap
+        - mountPath: /opt/policy/clamp/sdc-controllers-config.json
+          name: onap-policy-clamp-be-config
+          subPath: sdc-controllers-config.json
+        - mountPath: /opt/policy/clamp/application.properties
+          name: onap-policy-clamp-be-config
+          subPath: application.properties
+        env:
+        - name: RUNTIME_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-app-user-creds
+              key: login
+        - name: RUNTIME_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-app-user-creds
+              key: password
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-db-secret
+              key: login
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-db-secret
+              key: password
+        - name: SDC_CLIENT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-clamp-be-sdc-creds
+              key: password
+        resources: {}
+      serviceAccountName: onap-policy-clamp-be-read
+      volumes:
+      - name: onap-policy-clamp-be-aaf-config
+        emptyDir:
+          medium: Memory
+      - name: aaf-agent-certs
+        configMap:
+          name: onap-cert-wrapper-certs
+          defaultMode: 0700
+      - name: aaf-add-config
+        configMap:
+          name: onap-clamp-backend-cert-initializer-add-config
+          defaultMode: 0700
+      - name: onap-policy-clamp-be-config
+        configMap:
+          name: onap-policy-clamp-be-configmap
+          items:
+          - key: sdc-controllers-config.json
+            path: sdc-controllers-config.json
+          - key: application.properties
+            path: application.properties
+      - name: logs
+        emptyDir: {}
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

@@ -1,0 +1,24 @@
+# Source: onap/charts/aaf/charts/aaf-gui/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: aaf-gui
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: aaf-gui
+    helm.sh/chart: aaf-gui-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8200
+    targetPort: gui
+    protocol: TCP
+    name: gui
+    nodePort: 30251
+  ipFamilyPolicy: PreferDualStack
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: aaf-gui
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

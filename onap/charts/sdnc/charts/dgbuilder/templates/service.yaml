@@ -1,0 +1,21 @@
+# Source: onap/charts/sdnc/charts/dgbuilder/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: sdnc-dgbuilder
+  namespace: onap
+  labels:
+    app: sdnc-dgbuilder
+    chart: dgbuilder-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 3000
+      targetPort: 3100
+      nodePort: 30203
+      name: dgbuilder
+  selector:
+    app: sdnc-dgbuilder
+    release: onap

@@ -1,0 +1,199 @@
+# Source: onap/charts/sdnc/charts/elasticsearch/templates/coordinating-deploy.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-sdnrdb-coordinating-only
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: sdnrdb
+    helm.sh/chart: elasticsearch-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+    discovery: sdnrdb-cluster
+    role: coordinating-only
+spec:
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sdnrdb
+      app.kubernetes.io/instance: onap
+      discovery: sdnrdb-cluster
+      role: coordinating-only
+  replicas:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sdnrdb
+        helm.sh/chart: elasticsearch-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+        discovery: sdnrdb-cluster
+        role: coordinating-only
+      name: sdnrdb
+    spec:
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"
+      serviceAccountName: default
+      securityContext:
+        fsGroup: 1001
+      ## Image that performs the sysctl operation to modify Kernel settings (needed sometimes to avoid boot errors)
+      initContainers:
+      - name: sysctl
+        image: docker.io/busybox:1.34.1
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -o errexit
+          set -o pipefail
+          set -o nounset
+          sysctl -w vm.max_map_count=262144 && sysctl -w fs.file-max=65536
+        securityContext:
+          privileged: true
+      - name: elasticsearch-cert-initializer-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-locate
+        - --container-name
+        - aaf-cm
+        - --container-name
+        - aaf-service
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: sdnrdb-aaf-config
+        image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-sdnrdb-aaf-config
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAPall.jks.b64
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAP.p12.b64
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+          subPath: retrieval_check.sh
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/aaf-add-config.sh
+          subPath: aaf-add-config.sh
+        command:
+        - sh
+        - -c
+        - |
+          /opt/app/aaf_config/bin/agent.sh
+          . /opt/app/aaf_config/bin/retrieval_check.sh
+          /opt/app/aaf_config/bin/aaf-add-config.sh
+        env:
+        - name: APP_FQI
+          value: "sdnc@sdnc.onap.org"
+        - name: aaf_locate_url
+          value: "https://aaf-locate.onap:8095"
+        - name: aaf_locator_container_ns
+          value: "onap"
+        - name: aaf_locator_container
+          value: "oom"
+        - name: aaf_locator_fqdn
+          value: "sdnc"
+        - name: aaf_locator_app_ns
+          value: "org.osaaf.aaf"
+        - name: DEPLOY_FQI
+          valueFrom:
+            secretKeyRef:
+              name: onap-elasticsearch-cert-initializer-deployer-creds
+              key: login
+        - name: DEPLOY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-elasticsearch-cert-initializer-deployer-creds
+              key: password
+              #Note: want to put this on Nodes, eventually
+        - name: cadi_longitude
+          value: "0.0"
+        - name: cadi_latitude
+          value: "0.0"
+          #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+        - name: aaf_locator_public_fqdn
+          value: "aaf.osaaf.org"
+      containers:
+      - name: sdnrdb-nginx
+        image: docker.io/bitnami/nginx:1.21.4
+        imagePullPolicy: "IfNotPresent"
+        ports:
+        - containerPort: 9200
+          name: elasticsearch
+        - containerPort: 9300
+          name: http-transport
+        volumeMounts:
+        - name: nginx-server-block
+          mountPath: /opt/bitnami/nginx/conf/server_blocks
+        - mountPath: /opt/app/osaaf
+          name: onap-sdnrdb-aaf-config
+      - name: sdnrdb-elasticsearch
+        image: docker.io/bitnami/elasticsearch:7.9.3
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 1001
+        env:
+        - name: BITNAMI_DEBUG
+          value: "false"
+        - name: ELASTICSEARCH_CLUSTER_NAME
+          value: sdnrdb-cluster
+        - name: ELASTICSEARCH_CLUSTER_HOSTS
+          value: sdnrdb-discovery
+        - name: ELASTICSEARCH_HEAP_SIZE
+          value: "128m"
+        - name: ELASTICSEARCH_IS_DEDICATED_NODE
+          value: "yes"
+        - name: ELASTICSEARCH_NODE_TYPE
+          value: "coordinating"
+        - name: ELASTICSEARCH_PORT_NUMBER
+          value: "9000"
+        resources:
+          limits: {}
+          requests:
+            cpu: 25m
+            memory: 256Mi
+        volumeMounts:
+        - name: data
+          mountPath: "/bitnami/elasticsearch/data/"
+      volumes:
+      - name: data
+        emptyDir: {}
+      - name: nginx-server-block
+        configMap:
+          name: onap-sdnrdb-nginx-server-block
+      - name: onap-sdnrdb-aaf-config
+        emptyDir:
+          medium: Memory
+      - name: aaf-agent-certs
+        configMap:
+          name: onap-cert-wrapper-certs
+          defaultMode: 0700
+      - name: aaf-add-config
+        configMap:
+          name: onap-elasticsearch-cert-initializer-add-config
+          defaultMode: 0700

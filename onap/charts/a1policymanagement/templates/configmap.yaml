@@ -1,0 +1,150 @@
+# Source: onap/charts/a1policymanagement/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-a1policymanagement
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: a1policymanagement
+    helm.sh/chart: a1policymanagement-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+  name: onap-a1policymanagement-policy-conf
+data:
+  application.yaml: |2
+
+    spring:
+      profiles:
+        active: prod
+      main:
+        allow-bean-definition-overriding: true
+      aop:
+        auto: false
+    management:
+      endpoints:
+        web:
+          exposure:
+            # Enabling of springboot actuator features. See springboot documentation.
+            include: "loggers,logfile,health,info,metrics,threaddump,heapdump"
+
+    logging:
+      # Configuration of logging
+      level:
+        ROOT: DEBUG
+        org.springframework: DEBUG
+        org.springframework.data: DEBUG
+        org.springframework.web.reactive.function.client.ExchangeFunctions: DEBUG
+        org.onap.ccsdk.oran.a1policymanagementservice: DEBUG
+      file:
+        name: /var/log/policy-agent/application.log
+    server:
+      # Configuration of the HTTP/REST server. The parameters are defined and handeled by the springboot framework.
+      # See springboot documentation.
+      port: 8433
+      http-port: 8081
+      ssl:
+        key-store-type: PKCS12
+        key-store-password: ${KEYSTORE_PASSWORD}
+        key-store: /opt/app/osaaf/local/org.onap.a1p.p12
+        key-password: ${KEYSTORE_PASSWORD}
+        key-alias: a1p@a1p.onap.org
+    app:
+      # Location of the component configuration file. The file will only be used if the Consul database is not used;
+      # configuration from the Consul will override the file.
+      filepath: /opt/app/policy-agent/data/application_configuration.json
+      webclient:
+        # Configuration of the trust store used for the HTTP client (outgoing requests)
+        # The file location and the password for the truststore is only relevant if trust-store-used == true
+        # Note that the same keystore as for the server is used.
+        trust-store-used: false
+        trust-store-password: ${TRUSTSORE_PASSWORD}
+        trust-store: /opt/app/osaaf/local/org.onap.a1p.trust.jks
+        # Configuration of usage of HTTP Proxy for the southbound accesses.
+        # The HTTP proxy (if configured) will only be used for accessing NearRT RIC:s
+        http.proxy-host:
+        http.proxy-port: 0
+  application_configuration.json: |
+    {
+      "config": {
+        "controller": [
+          {
+            "name": "controller1",
+            "baseUrl": "https://sdnc.onap:8443",
+            "userName": "${A1CONTROLLER_USER}",
+            "password": "${A1CONTROLLER_PASSWORD}"
+          }
+        ],
+        "ric": [
+          {
+            "baseUrl": "http://a1-sim-osc-0.nonrtric:8085",
+            "controller": "controller1",
+            "managedElementIds": [
+              "kista_1",
+              "kista_2"
+            ],
+            "name": "ric1"
+          },
+          {
+            "baseUrl": "http://a1-sim-osc-1.nonrtric:8085",
+            "controller": "controller1",
+            "managedElementIds": [
+              "kista_1",
+              "kista_2"
+            ],
+            "name": "ric2"
+          },
+          {
+            "baseUrl": "http://a1-sim-std-0.nonrtric:8085",
+            "controller": "controller1",
+            "managedElementIds": [
+              "kista_1",
+              "kista_2"
+            ],
+            "name": "ric3"
+          },
+          {
+            "baseUrl": "http://a1-sim-std-1.nonrtric:8085",
+            "controller": "controller1",
+            "managedElementIds": [
+              "kista_1",
+              "kista_2"
+            ],
+            "name": "ric4"
+          },
+          {
+            "baseUrl": "http://a1-sim-std2-0.nonrtric:8085",
+            "controller": "controller1",
+            "managedElementIds": [
+              "kista_1",
+              "kista_2"
+            ],
+            "name": "ric5"
+          },
+          {
+            "baseUrl": "http://a1-sim-std2-1.nonrtric:8085",
+            "controller": "controller1",
+            "managedElementIds": [
+              "kista_1",
+              "kista_2"
+            ],
+            "name": "ric6"
+          }
+        ],
+        "streams_publishes": {
+          "dmaap_publisher": {
+            "type": "message_router",
+            "dmaap_info": {
+              "topic_url": "http://message-router:3904/events/A1-POLICY-AGENT-WRITE"
+            }
+          }
+        },
+        "streams_subscribes": {
+          "dmaap_subscriber": {
+            "type": "message_router",
+            "dmaap_info": {
+              "topic_url": "http://message-router:3904/events/A1-POLICY-AGENT-READ/users/policy-agent?timeout=15000&limit=100"
+            }
+          }
+        }
+      }
+    }

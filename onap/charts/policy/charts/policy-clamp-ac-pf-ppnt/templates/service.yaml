@@ -1,0 +1,23 @@
+# Source: onap/charts/policy/charts/policy-clamp-ac-pf-ppnt/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: policy-clamp-ac-pf-ppnt
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: policy-clamp-ac-pf-ppnt
+    helm.sh/chart: policy-clamp-ac-pf-ppnt-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8085
+    targetPort: http-api
+    protocol: TCP
+    name: http-api
+  ipFamilyPolicy: PreferDualStack
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: policy-clamp-ac-pf-ppnt
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

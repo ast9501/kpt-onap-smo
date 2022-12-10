@@ -1,0 +1,173 @@
+# Source: onap/charts/aaf/charts/aaf-service/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-aaf-service
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: aaf-service
+    helm.sh/chart: aaf-service-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aaf-service
+      app.kubernetes.io/instance: onap
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aaf-service
+        helm.sh/chart: aaf-service-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+      name: aaf-service
+    spec:
+      initContainers:
+      - name: onboard-identity-and-fix-permission
+        command:
+        - /bin/sh
+        args:
+        - -c
+        - |
+          echo "*** Move files from configmap to emptyDir"
+          cp -L /config-input-identity/* /config-identity/
+          echo "*** set righ user to the different folders"
+          chown -R 1000:1000 /config-identity
+          chown -R 1000:1000 /opt/app/aaf
+          chown -R 1000:1000 /opt/app/osaaf
+        image: docker.io/busybox:1.34.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: aaf-config-vol
+        - mountPath: /config-input-identity
+          name: config-init-identity
+        - mountPath: /config-identity
+          name: config-identity
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: aaf-service-aaf-readiness
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-cass
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: aaf-service-config-container
+        image: nexus3.onap.org:10001/onap/aaf/aaf_config:2.1.23
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/bash
+        args:
+        - -c
+        - |
+          cd /opt/app/aaf_config
+          bin/agent.sh
+        volumeMounts:
+        - mountPath: "/opt/app/osaaf"
+          name: aaf-config-vol
+        env:
+        - name: aaf_env
+          value: "DEV"
+        - name: cadi_latitude
+          value: "38.0"
+        - name: cadi_longitude
+          value: "-72.0"
+        - name: cadi_x509_issuers
+          value: "CN=intermediateCA_1, OU=OSAAF, O=ONAP, C=US:CN=intermediateCA_7, OU=OSAAF, O=ONAP, C=US"
+        - name: aaf_locate_url
+          value: "https://aaf-locate.onap:8095"
+        - name: aaf_locator_container
+          value: "oom"
+        - name: aaf_release
+          value: "Frankfurt"
+        - name: aaf_locator_container_ns
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        - name: aaf_locator_public_fqdn
+          value: "aaf.osaaf.org"
+        - name: aaf_locator_name
+          value: "%NS.%N"
+        - name: aaf_locator_name_oom
+          value: "%CNS.%NS.%N"
+        - name: cm_always_ignore_ips
+          value: "true"
+        - name: CASSANDRA_CLUSTER
+          value: "aaf-cass.onap"
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      containers:
+      - name: aaf-service
+        workingDir: /opt/app/aaf
+        command: ["bin/service"]
+        image: nexus3.onap.org:10001/onap/aaf/aaf_core:2.1.23
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8100
+          name: api
+        volumeMounts:
+        - mountPath: "/opt/app/osaaf"
+          name: aaf-config-vol
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /opt/app/osaaf/etc/org.osaaf.aaf.log4j.props
+          name: aaf-log
+          subPath: org.osaaf.aaf.log4j.props
+        - mountPath: /opt/app/osaaf/data/
+          name: config-identity
+        livenessProbe:
+          tcpSocket:
+            port: api
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: api
+          initialDelaySeconds: 150
+          periodSeconds: 10
+        resources: {}
+      volumes:
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: aaf-config-vol
+        emptyDir: {}
+      - name: aaf-log
+        configMap:
+          name: onap-aaf-log
+      - name: config-init-identity
+        configMap:
+          name: onap-aaf-identity
+      - name: config-identity
+        emptyDir: {}
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

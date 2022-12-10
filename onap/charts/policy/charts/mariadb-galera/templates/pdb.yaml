@@ -1,0 +1,19 @@
+# Source: onap/charts/policy/charts/mariadb-galera/templates/pdb.yaml
+#apiVersion: policy/v1beta1
+# for kubernets v1.25+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: onap-policy-mariadb
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: policy-mariadb
+    helm.sh/chart: mariadb-galera-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: policy-mariadb
+      app.kubernetes.io/instance: onap

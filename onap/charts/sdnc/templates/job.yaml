@@ -1,0 +1,192 @@
+# Source: onap/charts/sdnc/templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: onap-sdnc-dbinit-job
+  namespace: onap
+  labels:
+    app: sdnc
+    chart: sdnc-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  backoffLimit: 20
+  template:
+    metadata:
+      labels:
+        app: sdnc-job
+        release: onap
+      name: sdnc
+    spec:
+      initContainers:
+      - command:
+        - sh
+        args:
+        - -c
+        - "cd /config-input && for PFILE in `ls -1 .`; do envsubst <${PFILE} >/config/${PFILE}; done"
+        env:
+        - name: AAI_CLIENT_NAME
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-aai-user-creds
+              key: login
+        - name: AAI_CLIENT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-aai-user-creds
+              key: password
+        - name: MODELSERVICE_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-modeling-user-creds
+              key: login
+        - name: MODELSERVICE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-modeling-user-creds
+              key: password
+        - name: RESTCONF_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-restconf-creds
+              key: login
+        - name: RESTCONF_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-restconf-creds
+              key: password
+        - name: ANSIBLE_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-ansible-creds
+              key: login
+        - name: ANSIBLE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-ansible-creds
+              key: password
+        - name: SCALEOUT_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-scaleout-creds
+              key: login
+        - name: SCALEOUT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-scaleout-creds
+              key: password
+        - name: NETBOX_APIKEY
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-netbox-apikey
+              key: password
+        - name: SDNC_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: login
+        - name: SDNC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: password
+        volumeMounts:
+        - mountPath: /config-input
+          name: config-input
+        - mountPath: /config
+          name: properties
+        image: docker.io/dibi/envsubst:1
+        imagePullPolicy: IfNotPresent
+        name: sdnc-update-config
+      - name: sdnc-readiness
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - mariadb-galera
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+      containers:
+      - name: sdnc
+        image: nexus3.onap.org:10001/onap/sdnc-image:2.3.0
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-mariadb-galera-db-root-password
+              key: password
+        - name: ODL_ADMIN_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: login
+        - name: ODL_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: password
+        - name: SDNC_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: login
+        - name: SDNC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: password
+        - name: MYSQL_HOST
+          value: mariadb-galera
+        - name: SDNC_HOME
+          value: "/opt/onap/sdnc"
+        - name: ETC_DIR
+          value: "/opt/onap/sdnc/data"
+        - name: BIN_DIR
+          value: "/opt/onap/sdnc/bin"
+        - name: SDNC_DB_DATABASE
+          value: "sdnctl"
+        volumeMounts:
+        - mountPath: /opt/onap/sdnc/bin/installSdncDb.sh
+          name: bin
+          subPath: installSdncDb.sh
+        - mountPath: /opt/onap/sdnc/data/properties/svclogic.properties
+          name: properties
+          subPath: svclogic.properties
+        - mountPath: /opt/onap/sdnc/svclogic/config/svclogic.properties
+          name: properties
+          subPath: svclogic.properties
+        - mountPath: /opt/onap/sdnc/data/properties/dblib.properties
+          name: properties
+          subPath: dblib.properties
+        command:
+        - /bin/bash
+        args:
+        - /opt/onap/sdnc/bin/installSdncDb.sh
+        resources: {}
+      volumes:
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: docker-entrypoint-initdb-d
+        emptyDir: {}
+      - name: bin
+        configMap:
+          name: onap-sdnc-bin
+          defaultMode: 0755
+      - name: config-input
+        configMap:
+          name: onap-sdnc-properties
+          defaultMode: 0644
+      - name: properties
+        emptyDir:
+          medium: Memory
+      restartPolicy: Never
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

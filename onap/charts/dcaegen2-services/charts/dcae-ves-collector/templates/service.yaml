@@ -1,0 +1,24 @@
+# Source: onap/charts/dcaegen2-services/charts/dcae-ves-collector/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: dcae-ves-collector
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: dcae-ves-collector
+    helm.sh/chart: dcae-ves-collector-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8443
+    targetPort: http
+    protocol: TCP
+    name: https-http
+    nodePort: 30417
+  ipFamilyPolicy: PreferDualStack
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: dcae-ves-collector
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

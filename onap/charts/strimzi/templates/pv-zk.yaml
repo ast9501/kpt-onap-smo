@@ -1,0 +1,41 @@
+# Source: onap/charts/strimzi/templates/pv-zk.yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: onap-strimzi-zk-0
+  #namespace: onap
+  labels:
+    app.kubernetes.io/name: strimzi
+    helm.sh/chart: strimzi-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "onap-strimzi-zk"
+  hostPath:
+    path: /dockerdata-nfs/deployment-1670599359/onap/strimzi-kafka/zk-0
+---
+# Source: onap/charts/strimzi/templates/pv-zk.yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: onap-strimzi-zk-1
+  #namespace: onap
+  labels:
+    app.kubernetes.io/name: strimzi
+    helm.sh/chart: strimzi-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  capacity:
+    storage: 2Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: "onap-strimzi-zk"
+  hostPath:
+    path: /dockerdata-nfs/deployment-1670599359/onap/strimzi-kafka/zk-1

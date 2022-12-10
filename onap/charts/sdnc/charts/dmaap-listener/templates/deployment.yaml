@@ -1,0 +1,138 @@
+# Source: onap/charts/sdnc/charts/dmaap-listener/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-sdnc-dmaap-listener
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: sdnc-dmaap-listener
+    helm.sh/chart: dmaap-listener-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app: sdnc-dmaap-listener
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sdnc-dmaap-listener
+      app.kubernetes.io/instance: onap
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sdnc-dmaap-listener
+        helm.sh/chart: dmaap-listener-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+      name: sdnc-dmaap-listener
+    spec:
+      initContainers:
+      - command:
+        - sh
+        args:
+        - -c
+        - "cd /config-input && for PFILE in `ls -1 .`; do envsubst <${PFILE} >/config/${PFILE}; done"
+        env:
+        - name: SDNC_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: login
+        - name: SDNC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: password
+        - name: ODL_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: login
+        - name: ODL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-odl-creds
+              key: password
+        volumeMounts:
+        - mountPath: /config-input
+          name: config-input
+        - mountPath: /config
+          name: properties
+        image: docker.io/dibi/envsubst:1
+        imagePullPolicy: IfNotPresent
+        name: sdnc-dmaap-listener-update-config
+      - command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - mariadb-galera
+        - --container-name
+        - sdnc
+        - --container-name
+        - message-router
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        name: sdnc-dmaap-listener-readiness
+      containers:
+      - command:
+        - /opt/onap/sdnc/dmaap-listener/bin/start-dmaap-listener.sh
+        name: sdnc-dmaap-listener
+        image: nexus3.onap.org:10001/onap/sdnc-dmaap-listener-image:2.3.0
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: PROPERTY_DIR
+          value: "/opt/onap/sdnc/data/properties"
+        - name: SDNC_CONFIG_DIR
+          value: "/opt/onap/sdnc/data/properties"
+        - name: LOG4J_FORMAT_MSG_NO_LOOKUPS
+          value: "true"
+        volumeMounts:
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /opt/onap/sdnc/data/properties/dblib.properties
+          name: properties
+          subPath: dblib.properties
+        - mountPath: /opt/onap/sdnc/data/properties/dhcpalert.properties
+          name: properties
+          subPath: dhcpalert.properties
+        - mountPath: /opt/onap/sdnc/data/properties/lcm.properties
+          name: properties
+          subPath: lcm.properties
+        - mountPath: /opt/onap/sdnc/data/properties/aai.properties
+          name: properties
+          subPath: aai.properties
+        - mountPath: /opt/onap/sdnc/data/properties/dmaap-consumer-CMNotify.properties
+          name: properties
+          subPath: dmaap-consumer-CMNotify.properties
+        - mountPath: /opt/onap/sdnc/data/properties/dmaap-consumer-a1Adapter-policy.properties
+          name: properties
+          subPath: dmaap-consumer-a1Adapter-policy.properties
+        - mountPath: /opt/onap/sdnc/data/properties/dmaap-consumer-oofpcipoc.properties
+          name: properties
+          subPath: dmaap-consumer-oofpcipoc.properties
+        - mountPath: /opt/onap/sdnc/data/properties/dmaap-consumer-RANSlice.properties
+          name: properties
+          subPath: dmaap-consumer-RANSlice.properties
+        resources: {}
+      serviceAccountName: onap-sdnc-dmaap-listener-read
+      volumes:
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: config-input
+        configMap:
+          name: onap-sdnc-dmaap-listener
+          defaultMode: 0644
+      - name: properties
+        emptyDir:
+          medium: Memory
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

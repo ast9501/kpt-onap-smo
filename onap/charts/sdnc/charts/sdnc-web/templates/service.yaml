@@ -1,0 +1,24 @@
+# Source: onap/charts/sdnc/charts/sdnc-web/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: sdnc-web-service
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: sdnc-web
+    helm.sh/chart: sdnc-web-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8443
+    targetPort: sdnc-web
+    protocol: TCP
+    name: sdnc-web
+    nodePort: 30205
+  ipFamilyPolicy: PreferDualStack
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: sdnc-web
+    app.kubernetes.io/instance: onap
+  sessionAffinity: ClientIP

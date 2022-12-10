@@ -1,0 +1,24 @@
+# Source: onap/charts/dmaap/charts/dmaap-bc/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: dmaap-bc
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: dmaap-bc
+    helm.sh/chart: dmaap-bc-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8443
+    targetPort: api
+    protocol: TCP
+    name: https-api
+    nodePort: 30242
+  ipFamilyPolicy: PreferDualStack
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: dmaap-bc
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

@@ -1,0 +1,14 @@
+# Source: onap/charts/dcaegen2-services/charts/dcae-ves-collector/charts/serviceAccount/templates/role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+# This cluster role binding allows anyone in the "manager" group to read secrets in any namespace.
+kind: RoleBinding
+metadata:
+  name: onap-dcae-ves-collector-read
+  namespace: onap
+subjects:
+- kind: ServiceAccount
+  name: onap-dcae-ves-collector-read
+roleRef:
+  kind: Role
+  name: onap-read
+  apiGroup: rbac.authorization.k8s.io

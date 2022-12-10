@@ -1,0 +1,19 @@
+# Source: onap/charts/dmaap/charts/dmaap-bc/charts/postgres/templates/pvc-replica.yaml
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: onap-dbc-pg-replica
+  namespace: onap
+  labels:
+    app: onap-dbc-pg
+    chart: "postgres-10.0.0"
+    release: "onap"
+    heritage: "Helm"
+    name: onap-dbc-pg
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: "onap-dbc-pg-replica"

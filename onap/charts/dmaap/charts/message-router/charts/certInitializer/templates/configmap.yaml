@@ -1,0 +1,42 @@
+# Source: onap/charts/dmaap/charts/message-router/charts/certInitializer/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-dmaap-mr-cert-initializer-add-config
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: dmaap-mr-cert-initializer
+    helm.sh/chart: certInitializer-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+data:
+  retrieval_check.sh: |
+    #!/bin/sh
+
+    echo "*** retrieving passwords for certificates"
+    export $(/opt/app/aaf_config/bin/agent.sh local showpass \
+      dmaapmr@mr.dmaap.onap.org dmaap-mr | grep '^c' | xargs -0)
+    if [ -z "$cadi_keystore_password_p12" ]
+    then
+      echo " /!\ certificates retrieval failed"
+      exit 1
+    fi
+    echo "*** password retrieval succeeded"
+  aaf-add-config.sh: |
+    cd /opt/app/osaaf/local
+    echo "*** change jks password into shell safe one"
+    export KEYSTORE_PASSWD=$(tr -cd '[:alnum:]' < /dev/urandom | fold -w64 | head -n1)
+    keytool -storepasswd -new "${KEYSTORE_PASSWD}" \
+      -storepass "${cadi_keystore_password_jks}" \
+      -keystore org.onap.dmaap.mr.jks
+    echo "*** set key password as same password as jks keystore password"
+      keytool -keypasswd -new "${KEYSTORE_PASSWD}" \
+        -keystore org.onap.dmaap.mr.jks \
+        -keypass "${cadi_keystore_password_jks}" \
+        -storepass "${KEYSTORE_PASSWD}" -alias dmaapmr@mr.dmaap.onap.org
+    echo "*** store the passwords"
+    echo "KEYSTORE_PASSWORD=${KEYSTORE_PASSWD}" > mycreds.prop
+    echo "KEYSTORE_PASSWORD_P12=${cadi_keystore_password_p12}" >> mycreds.prop
+    echo "TRUSTSTORE_PASSWORD=${cadi_truststore_password}" >> mycreds.prop
+    echo "*** give ownership of files to the user"
+    chown -R 1000 .

@@ -1,0 +1,23 @@
+# Source: onap/charts/aaf/charts/aaf-cm/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: aaf-cm
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: aaf-cm
+    helm.sh/chart: aaf-cm-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 8150
+    targetPort: api
+    protocol: TCP
+    name: api
+  ipFamilyPolicy: PreferDualStack
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: aaf-cm
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

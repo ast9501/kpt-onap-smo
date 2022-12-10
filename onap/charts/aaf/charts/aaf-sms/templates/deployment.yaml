@@ -1,0 +1,215 @@
+# Source: onap/charts/aaf/charts/aaf-sms/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-aaf-sms
+  namespace: onap
+  labels:
+    app: aaf-sms
+    chart: aaf-sms-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aaf-sms
+  template:
+    metadata:
+      labels:
+        app: aaf-sms
+        release: onap
+    spec:
+      initContainers:
+      - name: aaf-sms-cert-init-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-locate
+        - --container-name
+        - aaf-cm
+        - --container-name
+        - aaf-service
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: aaf-sms-aaf-config
+        image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-aaf-sms-aaf-config
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAPall.jks.b64
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAP.p12.b64
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+          subPath: retrieval_check.sh
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/aaf-add-config.sh
+          subPath: aaf-add-config.sh
+        command:
+        - sh
+        - -c
+        - |
+          /opt/app/aaf_config/bin/agent.sh
+          . /opt/app/aaf_config/bin/retrieval_check.sh
+          /opt/app/aaf_config/bin/aaf-add-config.sh
+        env:
+        - name: APP_FQI
+          value: "aaf-sms@aaf-sms.onap.org"
+        - name: aaf_locate_url
+          value: "https://aaf-locate.onap:8095"
+        - name: aaf_locator_container_ns
+          value: "onap"
+        - name: aaf_locator_container
+          value: "oom"
+        - name: aaf_locator_fqdn
+          value: "aaf-sms"
+        - name: aaf_locator_app_ns
+          value: "org.osaaf.aaf"
+        - name: DEPLOY_FQI
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-cert-init-deployer-creds
+              key: login
+        - name: DEPLOY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-cert-init-deployer-creds
+              key: password
+              #Note: want to put this on Nodes, eventually
+        - name: cadi_longitude
+          value: "0.0"
+        - name: cadi_latitude
+          value: "0.0"
+          #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+        - name: aaf_locator_public_fqdn
+          value: "aaf-sms.onap.org"
+      # Currently intermediate certificate is not given by AAF CM so we need
+      # to give it "by hand"
+      - name: onap-aaf-sms-add-intermediate-cert
+        command:
+        - /bin/sh
+        args:
+        - -c
+        - |
+          cat /int-certs/intermediate_root_ca.pem >> /opt/app/osaaf/local/org.onap.aaf-sms.crt
+        image: docker.io/busybox:1.34.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-aaf-sms-aaf-config
+        - mountPath: /int-certs
+          name: onap-aaf-sms-int-certs
+          readOnly: true
+      - name: onap-aaf-sms-fix-permission
+        command:
+        - /bin/sh
+        args:
+        - -c
+        - |
+          chmod -R 775 /sms/auth
+          chown -R 1000:1000 /sms/auth
+        image: docker.io/busybox:1.34.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /sms/auth
+          name: onap-aaf-sms-auth
+      - name: aaf-sms-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - "aaf-sms-vault"
+        - --container-name
+        - "aaf-sms-vault-backend"
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+      containers:
+      - image: nexus3.onap.org:10001/onap/aaf/sms:4.0.2
+        imagePullPolicy: IfNotPresent
+        name: aaf-sms
+        command: ["/sms/bin/sms"]
+        workingDir: /sms/
+        ports:
+        - containerPort: 10443
+        livenessProbe:
+          httpGet:
+            port: 10443
+            scheme: HTTPS
+            path: /v1/sms/quorum/status
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            port: 10443
+            scheme: HTTPS
+            path: /v1/sms/quorum/status
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-aaf-sms-aaf-config
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /sms/smsconfig.json
+          name: aaf-sms
+          subPath: smsconfig.json
+        - mountPath: /sms/auth
+          name: onap-aaf-sms-auth
+        resources: {}
+      volumes:
+      - name: onap-aaf-sms-aaf-config
+        emptyDir:
+          medium: Memory
+      - name: aaf-agent-certs
+        configMap:
+          name: onap-cert-wrapper-certs
+          defaultMode: 0700
+      - name: aaf-add-config
+        configMap:
+          name: onap-aaf-sms-cert-init-add-config
+          defaultMode: 0700
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: aaf-sms
+        configMap:
+          name: onap-aaf-sms
+      - name: onap-aaf-sms-int-certs
+        secret:
+          secretName: onap-aaf-sms-int-certs
+      - name: onap-aaf-sms-auth
+        persistentVolumeClaim:
+          claimName: onap-aaf-sms
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

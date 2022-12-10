@@ -1,0 +1,17 @@
+# Source: onap/charts/strimzi/templates/strimzi-kafka-admin-user.yaml
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: strimzi-kafka-admin
+  labels:
+    strimzi.io/cluster: onap-strimzi
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+    - resource:
+        type: group
+        name: onap-group
+      operation: Read

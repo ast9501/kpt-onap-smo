@@ -1,0 +1,14 @@
+# Source: onap/charts/sdnc/charts/serviceAccount/templates/role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+# This cluster role binding allows anyone in the "manager" group to read secrets in any namespace.
+kind: RoleBinding
+metadata:
+  name: onap-sdnc-read
+  namespace: onap
+subjects:
+- kind: ServiceAccount
+  name: onap-sdnc-read
+roleRef:
+  kind: Role
+  name: onap-read
+  apiGroup: rbac.authorization.k8s.io

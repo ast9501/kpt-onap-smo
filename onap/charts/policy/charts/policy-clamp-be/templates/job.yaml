@@ -1,0 +1,75 @@
+# Source: onap/charts/policy/charts/policy-clamp-be/templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: onap-policy-clamp-galera-config
+  namespace: onap
+  labels:
+    app: policy-clamp-be-policy-clamp-job
+    release: onap
+spec:
+  template:
+    metadata:
+      labels:
+        app: policy-clamp-be-policy-clamp-job
+        release: onap
+    spec:
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"
+      initContainers:
+      #This container checks that all galera instances are up before initializing it.
+      - name: policy-clamp-be-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        command:
+        - /app/ready.py
+        - --job-name
+        - onap-policy-galera-config
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+      containers:
+      - name: onap-policy-clamp-galera-config
+        image: docker.io/bitnami/mariadb:10.5.8
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /dbcmd-config/create-db-tables.sh
+          name: onap-policy-clamp-be-config
+          subPath: create-db-tables.sh
+        - mountPath: /dbcmd-config/policy-clamp-create-tables.sql
+          name: onap-policy-clamp-be-config
+          subPath: policy-clamp-create-tables.sql
+        command:
+        - /bin/sh
+        args:
+        - -x
+        - /dbcmd-config/create-db-tables.sh
+        env:
+        - name: MYSQL_HOST
+          value: "policy-mariadb"
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-db-secret
+              key: login
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-db-secret
+              key: password
+        - name: MYSQL_PORT
+          value: "3306"
+        resources: {}
+      restartPolicy: Never
+      volumes:
+      - name: onap-policy-clamp-be-config
+        configMap:
+          name: onap-policy-clamp-be-configmap
+          items:
+          - key: create-db-tables.sh
+            path: create-db-tables.sh
+          - key: policy-clamp-create-tables.sql
+            path: policy-clamp-create-tables.sql

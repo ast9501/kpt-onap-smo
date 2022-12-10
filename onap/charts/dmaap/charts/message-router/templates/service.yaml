@@ -1,0 +1,54 @@
+# Source: onap/charts/dmaap/charts/message-router/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    msb.onap.org/service-info: '[ { "serviceName": "message-router", "version": "v1", "url": "/", "protocol": "REST", "enable_ssl": false, "port": "3904", "visualRange":"1" } ]'
+  name: message-router
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: message-router
+    helm.sh/chart: message-router-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 3905
+    targetPort: api
+    protocol: TCP
+    name: https-api
+  - port: 3904
+    targetPort: api-plain
+    protocol: TCP
+    name: http-api
+  ipFamilyPolicy: PreferDualStack
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: message-router
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None
+---
+# Source: onap/charts/dmaap/charts/message-router/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: message-router-external
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: message-router
+    helm.sh/chart: message-router-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ports:
+  - port: 3905
+    targetPort: api
+    protocol: TCP
+    name: https-api
+    nodePort: 30226
+  ipFamilyPolicy: PreferDualStack
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: message-router
+    app.kubernetes.io/instance: onap
+  sessionAffinity: None

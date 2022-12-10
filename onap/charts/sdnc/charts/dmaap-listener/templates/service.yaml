@@ -1,0 +1,14 @@
+# Source: onap/charts/sdnc/charts/dmaap-listener/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: sdnc-dmaap-listener
+  namespace: onap
+  labels:
+    app: sdnc-dmaap-listener
+    chart: dmaap-listener-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None

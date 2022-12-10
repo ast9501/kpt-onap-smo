@@ -1,0 +1,21 @@
+# Source: onap/charts/postgres/templates/pv-primary.yaml
+kind: PersistentVolume
+apiVersion: v1
+metadata:
+  name: onap-postgres-primary
+  #namespace: onap
+  labels:
+    app: onap-postgres
+    chart: "postgres-10.0.0"
+    release: "onap"
+    heritage: "Helm"
+    name: onap-postgres
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: "onap-postgres-primary"
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /dockerdata-nfs/deployment-1670599359/onap/postgres/data/primary

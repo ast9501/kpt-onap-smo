@@ -1,0 +1,20 @@
+# Source: onap/charts/policy/charts/policy-api/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: policy-api
+  namespace: onap
+  labels:
+    app: policy-api
+    chart: policy-api-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 6969
+      targetPort: 6969
+      name: policy-api
+  selector:
+    app: policy-api
+    release: onap

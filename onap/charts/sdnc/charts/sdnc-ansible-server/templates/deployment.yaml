@@ -1,0 +1,121 @@
+# Source: onap/charts/sdnc/charts/sdnc-ansible-server/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-sdnc-ansible-server
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: sdnc-ansible-server
+    helm.sh/chart: sdnc-ansible-server-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app: sdnc-ansible-server
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: sdnc-ansible-server
+      app.kubernetes.io/instance: onap
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: sdnc-ansible-server
+        helm.sh/chart: sdnc-ansible-server-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+      name: sdnc-ansible-server
+    spec:
+      initContainers:
+      - command:
+        - sh
+        args:
+        - -c
+        - "cd /config-input && for PFILE in `ls -1 .`; do envsubst <${PFILE} >/config/${PFILE}; done"
+        env:
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: login
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-db-secret
+              key: password
+        - name: REST_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-ansible-creds
+              key: login
+        - name: REST_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-sdnc-ansible-creds
+              key: password
+        volumeMounts:
+        - mountPath: /config-input
+          name: config-input
+        - mountPath: /config
+          name: config
+        image: docker.io/dibi/envsubst:1
+        imagePullPolicy: IfNotPresent
+        name: sdnc-ansible-server-update-config
+      - command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - sdnc
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        name: sdnc-ansible-server-readiness
+      containers:
+      - name: sdnc-ansible-server
+        command: ["/bin/bash"]
+        args: ["-c", "cd /opt/ansible-server && ./startAnsibleServer.sh"]
+        image: nexus3.onap.org:10001/onap/sdnc-ansible-server-image:2.3.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+        # disable liveness probe when breakpoints set in debugger
+        # so K8s doesn't restart unresponsive container
+
+        livenessProbe:
+          tcpSocket:
+            port: 8000
+          initialDelaySeconds: 180
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 10
+        volumeMounts:
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /opt/onap/sdnc/RestServer_config
+          name: config
+          subPath: RestServer_config
+        resources: {}
+      serviceAccountName: onap-sdnc-ansible-server-read
+      volumes:
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: config-input
+        configMap:
+          name: onap-sdnc-ansible-server
+          defaultMode: 0644
+      - name: config
+        emptyDir:
+          medium: Memory
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

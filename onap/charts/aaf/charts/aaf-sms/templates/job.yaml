@@ -1,0 +1,343 @@
+# Source: onap/charts/aaf/charts/aaf-sms/templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: onap-aaf-sms-preload
+  namespace: onap
+  labels:
+    app: aaf-sms
+    chart: aaf-sms-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  template:
+    metadata:
+      labels:
+        app: aaf-sms
+        release: onap
+    spec:
+      initContainers:
+      - name: aaf-sms-cert-init-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-locate
+        - --container-name
+        - aaf-cm
+        - --container-name
+        - aaf-service
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: aaf-sms-aaf-config
+        image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-aaf-sms-aaf-config
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAPall.jks.b64
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAP.p12.b64
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+          subPath: retrieval_check.sh
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/aaf-add-config.sh
+          subPath: aaf-add-config.sh
+        command:
+        - sh
+        - -c
+        - |
+          /opt/app/aaf_config/bin/agent.sh
+          . /opt/app/aaf_config/bin/retrieval_check.sh
+          /opt/app/aaf_config/bin/aaf-add-config.sh
+        env:
+        - name: APP_FQI
+          value: "aaf-sms@aaf-sms.onap.org"
+        - name: aaf_locate_url
+          value: "https://aaf-locate.onap:8095"
+        - name: aaf_locator_container_ns
+          value: "onap"
+        - name: aaf_locator_container
+          value: "oom"
+        - name: aaf_locator_fqdn
+          value: "aaf-sms"
+        - name: aaf_locator_app_ns
+          value: "org.osaaf.aaf"
+        - name: DEPLOY_FQI
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-cert-init-deployer-creds
+              key: login
+        - name: DEPLOY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-cert-init-deployer-creds
+              key: password
+              #Note: want to put this on Nodes, eventually
+        - name: cadi_longitude
+          value: "0.0"
+        - name: cadi_latitude
+          value: "0.0"
+          #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+        - name: aaf_locator_public_fqdn
+          value: "aaf-sms.onap.org"
+      - command:
+        - sh
+        args:
+        - -c
+        - "export AAI_PASS=${AAI_PASS_PLAIN}; export CONDUCTOR_PASS=${CONDUCTOR_PASS_PLAIN}; export SDNC_PASS=${SDNC_PASS_PLAIN}; export MUSIC_PASS=${MUSIC_PASS_PLAIN}; export AAF_PASS=${AAF_PASS_PLAIN}; export POLICY_PLAT_PASS=${POLICY_PLAT_PASS_PLAIN}; export POLICY_CLI_PASS=${POLICY_CLI_PASS_PLAIN}; export OSDF_PLACEMENT_PASS=${OSDF_PLACEMENT_PASS_PLAIN}; export OSDF_PLACEMENT_SO_PASS=${OSDF_PLACEMENT_SO_PASS_PLAIN}; export OSDF_PLACMENET_VFC_PASS=${OSDF_PLACEMENT_VFC_PASS_PLAIN}; export OSDF_CM_SCHEDULER_PASS=${OSDF_CM_SCHEDULER_PASS_PLAIN}; export CONFIG_DB_PASS=${CONFIG_DB_PASS_PLAIN}; export OSDF_PCI_OPT_PASS=${OSDF_PCI_OPT_PASS_PLAIN}; export OSDF_OPT_ENGINE_PASS=${OSDF_OPT_ENGINE_PASS_PLAIN}; export SO_PASS=${SO_PASS_PLAIN}; export SDC_PASS=${SDC_PASS_PLAIN}; cd /config-input; for PFILE in `find . -not -type d | grep -v -F ..`; do envsubst <${PFILE} >/config/${PFILE}; done"
+        env:
+        - name: AAI_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-aai-creds
+              key: login
+        - name: AAI_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-aai-creds
+              key: password
+        - name: CONDUCTOR_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-conductor-creds
+              key: login
+        - name: CONDUCTOR_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-conductor-creds
+              key: password
+        - name: SDNC_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-sdnc-creds
+              key: login
+        - name: SDNC_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-sdnc-creds
+              key: password
+        - name: MUSIC_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-music-creds
+              key: login
+        - name: MUSIC_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-music-creds
+              key: password
+        - name: AAF_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-aaf-creds
+              key: login
+        - name: AAF_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-aaf-creds
+              key: password
+        - name: POLICY_PLAT_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-policy-plat-creds
+              key: login
+        - name: POLICY_PLAT_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-policy-plat-creds
+              key: password
+        - name: POLICY_CLI_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-policy-cli-creds
+              key: login
+        - name: POLICY_CLI_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-policy-cli-creds
+              key: password
+        - name: OSDF_PLACEMENT_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-placement-creds
+              key: login
+        - name: OSDF_PLACEMENT_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-placement-creds
+              key: password
+        - name: OSDF_PLACEMENT_SO_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-placement-so-creds
+              key: login
+        - name: OSDF_PLACEMENT_SO_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-placement-so-creds
+              key: password
+        - name: OSDF_PLACEMENT_VFC_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-placement-vfc-creds
+              key: login
+        - name: OSDF_PLACEMENT_VFC_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-placement-vfc-creds
+              key: password
+        - name: OSDF_CM_SCHEDULER_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-cm-scheduler-creds
+              key: login
+        - name: OSDF_CM_SCHEDULER_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-cm-scheduler-creds
+              key: password
+        - name: CONFIG_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-config-db-creds
+              key: login
+        - name: CONFIG_DB_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-config-db-creds
+              key: password
+        - name: OSDF_PCI_OPT_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-pci-opt-creds
+              key: login
+        - name: OSDF_PCI_OPT_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-pci-opt-creds
+              key: password
+        - name: OSDF_OPT_ENGINE_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-opt-engine-creds
+              key: login
+        - name: OSDF_OPT_ENGINE_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-osdf-opt-engine-creds
+              key: password
+        - name: SO_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-so-creds
+              key: login
+        - name: SO_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-so-creds
+              key: password
+        - name: SDC_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-sdc-creds
+              key: login
+        - name: SDC_PASS_PLAIN
+          valueFrom:
+            secretKeyRef:
+              name: onap-aaf-sms-sdc-creds
+              key: password
+        volumeMounts:
+        - mountPath: /config-input
+          name: aaf-sms-preload-input
+        - mountPath: /config/
+          name: aaf-sms-preload
+        image: docker.io/dibi/envsubst:1
+        imagePullPolicy: IfNotPresent
+        name: aaf-sms-update-config
+      - image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        name: aaf-sms-readiness
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - "aaf-sms"
+        - --container-name
+        - "aaf-sms-quorumclient"
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+      containers:
+      - image: nexus3.onap.org:10001/onap/aaf/sms:4.0.2
+        imagePullPolicy: IfNotPresent
+        name: aaf-sms-preload
+        command:
+        - "/sms/bin/preload"
+        - "-cacert"
+        - "/opt/app/osaaf/local/aaf_root_ca.cer"
+        - "-jsondir"
+        - "/preload/config"
+        - "-serviceport"
+        - "10443"
+        - "-serviceurl"
+        - "https://aaf-sms.onap"
+        workingDir: /sms
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-aaf-sms-aaf-config
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /preload/config
+          name: aaf-sms-preload
+        resources: {}
+      volumes:
+      - name: onap-aaf-sms-aaf-config
+        emptyDir:
+          medium: Memory
+      - name: aaf-agent-certs
+        configMap:
+          name: onap-cert-wrapper-certs
+          defaultMode: 0700
+      - name: aaf-add-config
+        configMap:
+          name: onap-aaf-sms-cert-init-add-config
+          defaultMode: 0700
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: aaf-sms-preload-input
+        configMap:
+          name: onap-aaf-sms-preload
+      - name: aaf-sms-preload
+        emptyDir:
+          medium: Memory
+      restartPolicy: OnFailure
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

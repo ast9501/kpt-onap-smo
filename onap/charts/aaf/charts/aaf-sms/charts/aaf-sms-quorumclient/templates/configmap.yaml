@@ -1,0 +1,20 @@
+# Source: onap/charts/aaf/charts/aaf-sms/charts/aaf-sms-quorumclient/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: onap-aaf-sms-quorumclient
+  namespace: onap
+  labels:
+    app: aaf-sms-quorumclient
+    chart: aaf-sms-quorumclient-10.0.0
+    release: onap
+    heritage: Helm
+data:
+  config.json: |-
+    {
+        "url":"https://aaf-sms.onap:10443",
+        "cafile": "/quorumclient/certs/aaf_root_ca.cer",
+        "clientcert":"client.cert",
+        "clientkey":"client.key",
+        "timeout":"10s"
+    }

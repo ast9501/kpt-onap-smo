@@ -1,0 +1,20 @@
+# Source: onap/charts/sdnc/charts/network-name-gen/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: neng-serv
+  namespace: onap
+  labels:
+    app: network-name-gen
+    chart: network-name-gen-10.0.0
+    release: onap
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: neng-serv-port
+  selector:
+    app: network-name-gen
+    release: onap

@@ -1,0 +1,192 @@
+# Source: onap/charts/policy/charts/policy-clamp-ac-http-ppnt/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: onap-policy-clamp-ac-http-ppnt
+  namespace: onap
+  labels:
+    app.kubernetes.io/name: policy-clamp-ac-http-ppnt
+    helm.sh/chart: policy-clamp-ac-http-ppnt-10.0.0
+    app.kubernetes.io/instance: onap
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: policy-clamp-ac-http-ppnt
+      app.kubernetes.io/instance: onap
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: policy-clamp-ac-http-ppnt
+        helm.sh/chart: policy-clamp-ac-http-ppnt-10.0.0
+        app.kubernetes.io/instance: onap
+        app.kubernetes.io/managed-by: Helm
+      name: policy-clamp-ac-http-ppnt
+    spec:
+      initContainers:
+      - command:
+        - sh
+        args:
+        - -c
+        - "cd /config-input && for PFILE in `ls -1`; do envsubst <${PFILE} >/config/${PFILE}; done"
+        env:
+        - name: RESTSERVER_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-clamp-ac-http-ppnt-restserver-secret
+              key: login
+        - name: RESTSERVER_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-clamp-ac-http-ppnt-restserver-secret
+              key: password
+        volumeMounts:
+        - mountPath: /config-input
+          name: ac-http-ppnt-config
+        - mountPath: /config
+          name: ac-http-ppnt-config-processed
+        image: docker.io/dibi/envsubst:1
+        imagePullPolicy: IfNotPresent
+        name: policy-clamp-ac-http-ppnt-update-config
+      - name: policy-clamp-ac-http-ppnt-cert-initializer-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 100
+          runAsGroup: 65533
+        command:
+        - /app/ready.py
+        args:
+        - --container-name
+        - aaf-locate
+        - --container-name
+        - aaf-cm
+        - --container-name
+        - aaf-service
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+          requests:
+            cpu: 3m
+            memory: 20Mi
+      - name: policy-clamp-ac-http-ppnt-aaf-config
+        image: nexus3.onap.org:10001/onap/aaf/aaf_agent:2.1.20
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-policy-clamp-ac-http-ppnt-aaf-config
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAPall.jks.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAPall.jks.b64
+        - mountPath: /opt/app/aaf_config/cert/truststoreONAP.p12.b64
+          name: aaf-agent-certs
+          subPath: truststoreONAP.p12.b64
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/retrieval_check.sh
+          subPath: retrieval_check.sh
+        - name: aaf-add-config
+          mountPath: /opt/app/aaf_config/bin/aaf-add-config.sh
+          subPath: aaf-add-config.sh
+        command:
+        - sh
+        - -c
+        - |
+          /opt/app/aaf_config/bin/agent.sh
+          . /opt/app/aaf_config/bin/retrieval_check.sh
+          /opt/app/aaf_config/bin/aaf-add-config.sh
+        env:
+        - name: APP_FQI
+          value: "policy@policy.onap.org"
+        - name: aaf_locate_url
+          value: "https://aaf-locate.onap:8095"
+        - name: aaf_locator_container_ns
+          value: "onap"
+        - name: aaf_locator_container
+          value: "oom"
+        - name: aaf_locator_fqdn
+          value: "policy"
+        - name: aaf_locator_app_ns
+          value: "org.osaaf.aaf"
+        - name: DEPLOY_FQI
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-clamp-ac-http-ppnt-cert-initializer-deployer-creds
+              key: login
+        - name: DEPLOY_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-clamp-ac-http-ppnt-cert-initializer-deployer-creds
+              key: password
+              #Note: want to put this on Nodes, eventually
+        - name: cadi_longitude
+          value: "0.0"
+        - name: cadi_latitude
+          value: "0.0"
+          #Hello specific.  Clients don't don't need this, unless Registering with AAF Locator
+        - name: aaf_locator_public_fqdn
+          value: "policy.onap.org"
+      containers:
+      - name: policy-clamp-ac-http-ppnt
+        image: nexus3.onap.org:10001/onap/policy-clamp-ac-http-ppnt:6.2.3
+        imagePullPolicy: IfNotPresent
+        command: ["sh", "-c"]
+        args: ["source /opt/app/osaaf/local/.ci;/opt/app/policy/clamp/bin/http-participant.sh /opt/app/policy/clamp/etc/mounted/HttpParticipantParameters.yaml"]
+        ports:
+        - containerPort: 8084
+          name: http-api
+        # disable liveness probe when breakpoints set in debugger
+        # so K8s doesn't restart unresponsive container
+        livenessProbe:
+          tcpSocket:
+            port: http-api
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        readinessProbe:
+          tcpSocket:
+            port: http-api
+          initialDelaySeconds: 20
+          periodSeconds: 10
+        volumeMounts:
+        - mountPath: /opt/app/osaaf
+          name: onap-policy-clamp-ac-http-ppnt-aaf-config
+        - mountPath: /etc/localtime
+          name: localtime
+          readOnly: true
+        - mountPath: /opt/app/policy/clamp/etc/mounted
+          name: ac-http-ppnt-config-processed
+        resources: {}
+      serviceAccountName: onap-policy-clamp-ac-http-ppnt-read
+      volumes:
+      - name: onap-policy-clamp-ac-http-ppnt-aaf-config
+        emptyDir:
+          medium: Memory
+      - name: aaf-agent-certs
+        configMap:
+          name: onap-cert-wrapper-certs
+          defaultMode: 0700
+      - name: aaf-add-config
+        configMap:
+          name: onap-policy-clamp-ac-http-ppnt-cert-initializer-add-config
+          defaultMode: 0700
+      - name: localtime
+        hostPath:
+          path: /etc/localtime
+      - name: ac-http-ppnt-config
+        configMap:
+          name: onap-policy-clamp-ac-http-ppnt-configmap
+          defaultMode: 0755
+      - name: ac-http-ppnt-config-processed
+        emptyDir:
+          medium: Memory
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"

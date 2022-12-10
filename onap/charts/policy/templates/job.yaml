@@ -1,0 +1,109 @@
+# Source: onap/charts/policy/templates/job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: onap-policy-galera-config
+  namespace: onap
+  labels:
+    app: policy-job
+    release: onap
+spec:
+  template:
+    metadata:
+      labels:
+        app: policy-job
+        release: onap
+    spec:
+      imagePullSecrets:
+      - name: "onap-docker-registry-key"
+      initContainers:
+      #This container checks that all galera instances are up before initializing it.
+      - name: policy-mariadb-readiness
+        image: nexus3.onap.org:10001/onap/oom/readiness:3.0.1
+        imagePullPolicy: IfNotPresent
+        command:
+        - /app/ready.py
+        - --container-name
+        - policy-mariadb
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+      - name: onap-policy-galera-config
+        image: docker.io/mariadb:10.5.8
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /dbcmd-config/db.sh
+          name: onap-policy-config
+          subPath: db.sh
+        command:
+        - /bin/sh
+        args:
+        - -x
+        - /dbcmd-config/db.sh
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-db-root-password
+              key: password
+        - name: MYSQL_HOST
+          value: "policy-mariadb"
+        - name: MYSQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-db-secret
+              key: login
+        - name: MYSQL_PORT
+          value: "3306"
+        resources: {}
+      containers:
+      - name: onap-policy-galera-db-migrator
+        image: nexus3.onap.org:10001/onap/policy-db-migrator:2.4.3
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - mountPath: /dbcmd-config/db_migrator_policy_init.sh
+          name: onap-policy-config
+          subPath: db_migrator_policy_init.sh
+        command:
+        - /bin/sh
+        args:
+        - -x
+        - /dbcmd-config/db_migrator_policy_init.sh
+        env:
+        - name: SQL_HOST
+          value: "policy-mariadb"
+        - name: SQL_USER
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-db-secret
+              key: login
+        - name: SQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: onap-policy-db-secret
+              key: password
+        - name: SQL_DB
+          value: policyadmin
+        - name: POLICY_HOME
+          value: /opt/app/policy
+        - name: SCRIPT_DIRECTORY
+          value: "sql"
+        resources: {}
+      restartPolicy: Never
+      serviceAccountName: onap-policy-read
+      volumes:
+      - name: onap-policy-config
+        configMap:
+          name: onap-policy-db-configmap
+          items:
+          - key: db.sh
+            path: db.sh
+          - key: db_migrator_policy_init.sh
+            path: db_migrator_policy_init.sh
+          - key: db-pg.sh
+            path: db-pg.sh
+          - key: db_migrator_pg_policy_init.sh
+            path: db_migrator_pg_policy_init.sh
