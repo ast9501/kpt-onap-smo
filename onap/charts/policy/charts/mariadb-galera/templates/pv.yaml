@@ -3,7 +3,7 @@ kind: PersistentVolume
 apiVersion: v1
 metadata:
   name: onap-policy-mariadb--0
-  namespace: onap
+  #namespace: onap
   labels:
     app.kubernetes.io/name: policy-mariadb
     helm.sh/chart: mariadb-galera-10.0.0
