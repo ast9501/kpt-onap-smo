@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: onap-a1policymanagement
+  #name: onap-a1policymanagement
   namespace: onap
   labels:
     app.kubernetes.io/name: a1policymanagement
