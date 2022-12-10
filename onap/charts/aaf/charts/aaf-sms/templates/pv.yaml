@@ -3,7 +3,7 @@ kind: PersistentVolume
 apiVersion: v1
 metadata:
   name: onap-aaf-sms
-  namespace: onap
+  #namespace: onap
   labels:
     app: aaf-sms
     chart: "aaf-sms-10.0.0"

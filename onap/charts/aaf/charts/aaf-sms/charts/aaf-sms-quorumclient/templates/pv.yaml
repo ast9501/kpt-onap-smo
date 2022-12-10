@@ -3,7 +3,7 @@ kind: PersistentVolume
 apiVersion: v1
 metadata:
   name: onap-aaf-sms-quorumclient-data-0
-  namespace: onap
+  #namespace: onap
   labels:
     app: aaf-sms-quorumclient
     chart: "aaf-sms-quorumclient-10.0.0"
@@ -25,7 +25,7 @@ kind: PersistentVolume
 apiVersion: v1
 metadata:
   name: onap-aaf-sms-quorumclient-data-1
-  namespace: onap
+  #namespace: onap
   labels:
     app: aaf-sms-quorumclient
     chart: "aaf-sms-quorumclient-10.0.0"
@@ -47,7 +47,7 @@ kind: PersistentVolume
 apiVersion: v1
 metadata:
   name: onap-aaf-sms-quorumclient-data-2
-  namespace: onap
+  #namespace: onap
   labels:
     app: aaf-sms-quorumclient
     chart: "aaf-sms-quorumclient-10.0.0"
