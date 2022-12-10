@@ -3,7 +3,7 @@ kind: PersistentVolume
 apiVersion: v1
 metadata:
   name: onap-dmaap-dr-node-event-logs-0
-  namespace: onap
+  #namespace: onap
   labels:
     app.kubernetes.io/name: dmaap-dr-node
     helm.sh/chart: dmaap-dr-node-10.0.0
