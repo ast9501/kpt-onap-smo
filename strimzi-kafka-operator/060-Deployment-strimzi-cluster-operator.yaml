@@ -9,6 +9,11 @@ metadata:
     component: deployment
     release: strimzi-kafka-operator
     heritage: Helm
+  annotations:
+    config.kubernetes.io/depends-on:
+      - kafka.strimzi.io/CustomResourceDefinition/kafkas.kafka.strimzi.io
+      - kafka.strimzi.io/CustomResourceDefinition/kafkaconnects.kafka.strimzi.io
+      - core.strimzi.io/CustomResourceDefinition/strimzipodsets.core.strimzi.io
   namespace: strimzi-system
 spec:
   replicas: 1
