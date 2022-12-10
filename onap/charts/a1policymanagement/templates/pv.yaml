@@ -3,7 +3,7 @@ kind: PersistentVolume
 apiVersion: v1
 metadata:
   name: onap-a1policymanagement--0
-  namespace: onap
+  #namespace: onap
   labels:
     app.kubernetes.io/name: a1policymanagement
     helm.sh/chart: a1policymanagement-10.0.0
